@@ -48,6 +48,7 @@ PREC: <b id="precisao">--</b> &nbsp; ALT: <b id="altitude">--</b>
 <div class="controles">
 <div class="metricas">
 <div class="metrica"><b id="distancia">0 m</b><span>DISTÂNCIA</span></div>
+<div class="metrica"><b id="velocidade">0.0 km/h</b><span>VELOCIDADE</span></div>
 <div class="metrica"><b id="pontos">0</b><span>PONTOS</span></div>
 </div>
 <div class="botoes">
@@ -73,6 +74,8 @@ let retornando = false;
 let pontosTrilha = [];
 let ultimoPonto = null;
 let distanciaTotal = 0;
+let ultimaPosicaoVelocidade = null;
+let ultimaHoraVelocidade = null;
 
 let linhaTrilha = null;
 let linhaRetorno = null;
@@ -219,6 +222,37 @@ function atualizarGPS(pos){
 
     const lat = c.latitude;
     const lon = c.longitude;
+
+    // Velocidade em km/h. Usa a velocidade fornecida pelo GPS quando disponível;
+    // caso contrário, calcula pela distância entre duas posições.
+    let velocidadeKmh = 0;
+
+    if(c.speed != null && Number.isFinite(c.speed) && c.speed >= 0){
+        velocidadeKmh = c.speed * 3.6;
+    }else if(ultimaPosicaoVelocidade && ultimaHoraVelocidade){
+        const agora = Date.now();
+        const segundos = (agora - ultimaHoraVelocidade) / 1000;
+        if(segundos > 0){
+            const metros = distanciaMetros(
+                ultimaPosicaoVelocidade[0],
+                ultimaPosicaoVelocidade[1],
+                lat,
+                lon
+            );
+            velocidadeKmh = (metros / segundos) * 3.6;
+        }
+    }
+
+    // Evita valores absurdos causados por erro momentâneo do GPS.
+    if(!Number.isFinite(velocidadeKmh) || velocidadeKmh > 250){
+        velocidadeKmh = 0;
+    }
+
+    document.getElementById("velocidade")
+        .textContent = velocidadeKmh.toFixed(1) + " km/h";
+
+    ultimaPosicaoVelocidade = [lat, lon];
+    ultimaHoraVelocidade = Date.now();
 
     document.getElementById("status")
         .textContent =
