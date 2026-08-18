@@ -968,14 +968,6 @@ function limparTrilha(){
         return;
     }
 
-        alert(
-            "Pare a gravação antes de limpar."
-        );
-
-        return;
-    }
-
-
     if(!confirm(
         "Apagar a trilha salva neste celular?"
     )){
@@ -983,24 +975,33 @@ function limparTrilha(){
         return;
     }
 
-
     pontosTrilha = [];
 
     distanciaTotal = 0;
 
     ultimoPonto = null;
 
-
     linhaTrilha.setLatLngs([]);
 
+    if(linhaRetorno){
+
+        linhaRetorno.setLatLngs([]);
+    }
+
+    if(marcadorInicio){
+
+        mapa.removeLayer(
+            marcadorInicio
+        );
+
+        marcadorInicio = null;
+    }
 
     localStorage.removeItem(
         CHAVE_TRILHA
     );
 
-
     atualizarMetricas();
-
 
     document.getElementById("mensagem")
         .textContent =
