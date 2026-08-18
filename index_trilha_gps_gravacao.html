@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Minha Trilha GPS</title>
+
+<link rel="stylesheet"
+href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
+<style>
+*{box-sizing:border-box}
+
+body{
+    font-family:Arial,sans-serif;
+    background:#111827;
+    color:white;
+    padding:16px;
+    margin:0;
+}
+
+h1{
+    font-size:27px;
+    margin:0 0 16px;
+}
+
+.card{
+    background:#222c3d;
+    padding:16px;
+    border-radius:18px;
+    margin-bottom:14px;
+}
+
+#status{
+    font-size:21px;
+    font-weight:bold;
+}
+
+#mensagem{
+    margin-top:8px;
+    color:#9ca3af;
+    line-height:1.4;
+}
+
+.info{
+    font-size:17px;
+    line-height:2;
+}
+
+.info div{
+    display:flex;
+    justify-content:space-between;
+    border-bottom:1px solid #374151;
+}
+
+.info div:last-child{
+    border-bottom:0;
+}
+
+#map{
+    height:380px;
+    width:100%;
+    border-radius:15px;
+    overflow:hidden;
+}
+
+.metricas{
+    display:flex;
+    gap:8px;
+}
+
+.metrica{
+    flex:1;
+    text-align:center;
+    background:#182131;
+    border-radius:12px;
+    padding:12px 4px;
+}
+
+.metrica b{
+    display:block;
+    font-size:20px;
+}
+
+.metrica span{
+    color:#9ca3af;
+    font-size:12px;
+}
+
+button{
+    width:100%;
+    padding:17px;
+    margin-top:9px;
+    border:0;
+    border-radius:13px;
+    font-size:17px;
+    font-weight:bold;
+    color:white;
+}
+
+.gps{background:#2563eb}
+.gravar{background:#f59e0b}
+.parar{background:#374151}
+.limpar{background:#dc2626}
+
+.small{
+    color:#9ca3af;
+    font-size:14px;
+    line-height:1.5;
+}
+</style>
+</head>
+
+<body>
+
+<h1>🧭 Minha Trilha GPS</h1>
+
+<div class="card">
+    <div id="status">🟡 Aguardando GPS</div>
+    <div id="mensagem">
+        Toque em TESTAR GPS para iniciar.
+    </div>
+</div>
+
+<div class="card info">
+    <div><span>Latitude</span><b id="lat">--</b></div>
+    <div><span>Longitude</span><b id="lon">--</b></div>
+    <div><span>Precisão</span><b id="precisao">--</b></div>
+    <div><span>Altitude</span><b id="altitude">--</b></div>
+</div>
+
+<div class="card">
+    <div id="map"></div>
+</div>
+
+<div class="card">
+
+    <div class="metricas">
+        <div class="metrica">
+            <b id="distancia">0 m</b>
+            <span>DISTÂNCIA</span>
+        </div>
+
+        <div class="metrica">
+            <b id="pontos">0</b>
+            <span>PONTOS</span>
+        </div>
+    </div>
+
+    <button class="gps" onclick="testarGPS()">
+        🛰️ TESTAR GPS
+    </button>
+
+    <button class="gravar" onclick="iniciarGravacao()">
+        🔴 INICIAR TRILHA
+    </button>
+
+    <button class="parar" onclick="pararGravacao()">
+        ⏹ PARAR TRILHA
+    </button>
+
+    <button class="limpar" onclick="limparTrilha()">
+        🗑️ LIMPAR TRILHA
+    </button>
+
+</div>
+
+<div class="card small">
+    <b>Como usar:</b><br>
+    1. Ligue o GPS.<br>
+    2. Toque em INICIAR TRILHA.<br>
+    3. Caminhe normalmente.<br>
+    4. O caminho será desenhado no mapa.<br>
+    5. Toque em PARAR TRILHA quando terminar.
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+
+let mapa;
+let marcador = null;
+let circuloPrecisao = null;
+let watchId = null;
+
+let gravando = false;
+
+let pontosTrilha = [];
+let ultimoPonto = null;
+let distanciaTotal = 0;
+
+let linhaTrilha = null;
+
+const CHAVE_TRILHA = "minha_trilha_gps";
+
+
+// =====================================================
+// MAPA
+// =====================================================
+
+function iniciarMapa(){
+
+    mapa = L.map("map").setView(
+        [-22.1547,-51.4534],
+        16
+    );
+
+    L.tileLayer(
+        "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        {
+            maxZoom:19,
+            attribution:"&copy; OpenStreetMap"
+        }
+    ).addTo(mapa);
+
+    linhaTrilha = L.polyline(
+        [],
+        {
+            color:"#f59e0b",
+            weight:5,
+            opacity:0.9
+        }
+    ).addTo(mapa);
+
+    carregarTrilha();
+}
+
+
+// =====================================================
+// DISTÂNCIA GPS
+// =====================================================
+
+function distanciaMetros(
+    lat1,
+    lon1,
+    lat2,
+    lon2
+){
+
+    const R = 6371000;
+    const rad = Math.PI / 180;
+
+    const dLat =
+        (lat2-lat1) * rad;
+
+    const dLon =
+        (lon2-lon1) * rad;
+
+    const a =
+        Math.sin(dLat/2) *
+        Math.sin(dLat/2) +
+
+        Math.cos(lat1*rad) *
+        Math.cos(lat2*rad) *
+
+        Math.sin(dLon/2) *
+        Math.sin(dLon/2);
+
+    return R *
+        2 *
+        Math.atan2(
+            Math.sqrt(a),
+            Math.sqrt(1-a)
+        );
+}
+
+
+// =====================================================
+// GPS
+// =====================================================
+
+function testarGPS(){
+
+    if(!navigator.geolocation){
+
+        document.getElementById("status")
+            .textContent =
+            "🔴 GPS NÃO DISPONÍVEL";
+
+        return;
+    }
+
+    if(watchId !== null){
+
+        navigator.geolocation.clearWatch(
+            watchId
+        );
+    }
+
+    document.getElementById("status")
+        .textContent =
+        "🟡 PROCURANDO GPS...";
+
+    document.getElementById("mensagem")
+        .textContent =
+        "Aguarde alguns segundos...";
+
+    watchId =
+        navigator.geolocation.watchPosition(
+
+            atualizarGPS,
+
+            erroGPS,
+
+            {
+                enableHighAccuracy:true,
+                maximumAge:1000,
+                timeout:15000
+            }
+
+        );
+}
+
+
+// =====================================================
+// POSIÇÃO RECEBIDA
+// =====================================================
+
+function atualizarGPS(pos){
+
+    const c = pos.coords;
+
+    const lat = c.latitude;
+    const lon = c.longitude;
+
+    document.getElementById("status")
+        .textContent =
+        gravando
+        ? "🔴 GRAVANDO TRILHA"
+        : "🟢 GPS FUNCIONANDO";
+
+    document.getElementById("mensagem")
+        .textContent =
+        gravando
+        ? "Registrando sua posição..."
+        : "Posição recebida corretamente.";
+
+    document.getElementById("lat")
+        .textContent =
+        lat.toFixed(6);
+
+    document.getElementById("lon")
+        .textContent =
+        lon.toFixed(6);
+
+    document.getElementById("precisao")
+        .textContent =
+        Math.round(c.accuracy) + " m";
+
+    document.getElementById("altitude")
+        .textContent =
+        c.altitude == null
+        ? "--"
+        : Math.round(c.altitude) + " m";
+
+
+    const ponto = [lat,lon];
+
+
+    // marcador
+    if(!marcador){
+
+        marcador =
+            L.marker(ponto)
+            .addTo(mapa);
+
+        marcador.bindPopup(
+            "📍 Você está aqui"
+        );
+
+    }else{
+
+        marcador.setLatLng(
+            ponto
+        );
+    }
+
+
+    // círculo de precisão
+    if(circuloPrecisao){
+
+        circuloPrecisao.setLatLng(
+            ponto
+        );
+
+        circuloPrecisao.setRadius(
+            c.accuracy
+        );
+
+    }else{
+
+        circuloPrecisao =
+            L.circle(
+                ponto,
+                {
+                    radius:c.accuracy,
+                    color:"#22c55e",
+                    fillOpacity:0.10
+                }
+            ).addTo(mapa);
+    }
+
+
+    // centraliza no usuário
+    mapa.setView(
+        ponto,
+        17
+    );
+
+
+    // grava a posição
+    if(gravando){
+
+        registrarPonto(
+            lat,
+            lon
+        );
+    }
+}
+
+
+// =====================================================
+// GRAVAÇÃO
+// =====================================================
+
+function registrarPonto(
+    lat,
+    lon
+){
+
+    if(ultimoPonto){
+
+        const distancia =
+            distanciaMetros(
+                ultimoPonto[0],
+                ultimoPonto[1],
+                lat,
+                lon
+            );
+
+
+        // Ignora movimentos menores que 5 metros
+        if(distancia < 5){
+
+            return;
+        }
+
+
+        distanciaTotal +=
+            distancia;
+    }
+
+
+    ultimoPonto =
+        [lat,lon];
+
+
+    pontosTrilha.push({
+
+        lat:lat,
+        lon:lon,
+
+        hora:
+            new Date()
+            .toISOString()
+
+    });
+
+
+    linhaTrilha.setLatLngs(
+
+        pontosTrilha.map(
+            p => [p.lat,p.lon]
+        )
+
+    );
+
+
+    atualizarMetricas();
+
+    salvarTrilha();
+}
+
+
+// =====================================================
+// INICIAR TRILHA
+// =====================================================
+
+function iniciarGravacao(){
+
+    if(!navigator.geolocation){
+
+        alert(
+            "GPS não disponível."
+        );
+
+        return;
+    }
+
+
+    if(watchId === null){
+
+        testarGPS();
+    }
+
+
+    gravando = true;
+
+
+    document.getElementById("status")
+        .textContent =
+        "🔴 GRAVANDO TRILHA";
+
+    document.getElementById("mensagem")
+        .textContent =
+        "Caminhe normalmente. O caminho será desenhado no mapa.";
+}
+
+
+// =====================================================
+// PARAR TRILHA
+// =====================================================
+
+function pararGravacao(){
+
+    gravando = false;
+
+
+    document.getElementById("status")
+        .textContent =
+        watchId !== null
+        ? "🟢 GPS FUNCIONANDO"
+        : "⏹ GPS PARADO";
+
+
+    document.getElementById("mensagem")
+        .textContent =
+        "Trilha parada e salva neste celular.";
+}
+
+
+// =====================================================
+// MÉTRICAS
+// =====================================================
+
+function atualizarMetricas(){
+
+    let texto;
+
+    if(distanciaTotal < 1000){
+
+        texto =
+            Math.round(
+                distanciaTotal
+            ) + " m";
+
+    }else{
+
+        texto =
+            (
+                distanciaTotal / 1000
+            ).toFixed(2) + " km";
+    }
+
+
+    document.getElementById("distancia")
+        .textContent =
+        texto;
+
+
+    document.getElementById("pontos")
+        .textContent =
+        pontosTrilha.length;
+}
+
+
+// =====================================================
+// SALVAR
+// =====================================================
+
+function salvarTrilha(){
+
+    const dados = {
+
+        pontos:pontosTrilha,
+
+        distancia:distanciaTotal,
+
+        data:
+            new Date()
+            .toISOString()
+
+    };
+
+
+    localStorage.setItem(
+
+        CHAVE_TRILHA,
+
+        JSON.stringify(dados)
+
+    );
+}
+
+
+// =====================================================
+// CARREGAR TRILHA
+// =====================================================
+
+function carregarTrilha(){
+
+    const dados =
+        localStorage.getItem(
+            CHAVE_TRILHA
+        );
+
+
+    if(!dados){
+
+        return;
+    }
+
+
+    try{
+
+        const obj =
+            JSON.parse(dados);
+
+
+        pontosTrilha =
+            obj.pontos || [];
+
+
+        distanciaTotal =
+            obj.distancia || 0;
+
+
+        linhaTrilha.setLatLngs(
+
+            pontosTrilha.map(
+                p => [p.lat,p.lon]
+            )
+
+        );
+
+
+        atualizarMetricas();
+
+
+        if(pontosTrilha.length){
+
+            const ultimo =
+                pontosTrilha[
+                    pontosTrilha.length-1
+                ];
+
+
+            ultimoPonto =
+                [
+                    ultimo.lat,
+                    ultimo.lon
+                ];
+        }
+
+    }catch(e){
+
+        console.log(
+            "Erro ao carregar trilha:",
+            e
+        );
+    }
+}
+
+
+// =====================================================
+// LIMPAR
+// =====================================================
+
+function limparTrilha(){
+
+    if(gravando){
+
+        alert(
+            "Pare a gravação antes de limpar."
+        );
+
+        return;
+    }
+
+
+    if(!confirm(
+        "Apagar a trilha salva neste celular?"
+    )){
+
+        return;
+    }
+
+
+    pontosTrilha = [];
+
+    distanciaTotal = 0;
+
+    ultimoPonto = null;
+
+
+    linhaTrilha.setLatLngs([]);
+
+
+    localStorage.removeItem(
+        CHAVE_TRILHA
+    );
+
+
+    atualizarMetricas();
+
+
+    document.getElementById("mensagem")
+        .textContent =
+        "Trilha apagada.";
+}
+
+
+// =====================================================
+// ERRO GPS
+// =====================================================
+
+function erroGPS(err){
+
+    let texto =
+        "Erro ao obter GPS.";
+
+
+    if(err.code === 1){
+
+        texto =
+            "Permissão de localização negada.";
+
+    }else if(err.code === 2){
+
+        texto =
+            "Posição indisponível.";
+
+    }else if(err.code === 3){
+
+        texto =
+            "Tempo esgotado para obter GPS.";
+    }
+
+
+    document.getElementById("status")
+        .textContent =
+        "🔴 ERRO GPS";
+
+
+    document.getElementById("mensagem")
+        .textContent =
+        texto;
+}
+
+
+// inicia
+iniciarMapa();
+
+</script>
+
+</body>
+</html>
