@@ -101,6 +101,8 @@ button{
 .gps{background:#2563eb}
 .gravar{background:#f59e0b}
 .parar{background:#374151}
+.voltar{background:#2563eb}
+.pararRetorno{background:#4b5563}
 .limpar{background:#dc2626}
 
 .small{
@@ -159,6 +161,14 @@ button{
         ⏹ PARAR TRILHA
     </button>
 
+    <button class="voltar" onclick="iniciarRetorno()">
+        🔵 VOLTAR PELO CAMINHO
+    </button>
+
+    <button class="pararRetorno" onclick="pararRetorno()">
+        ⏹ PARAR RETORNO
+    </button>
+
     <button class="limpar" onclick="limparTrilha()">
         🗑️ LIMPAR TRILHA
     </button>
@@ -171,7 +181,8 @@ button{
     2. Toque em INICIAR TRILHA.<br>
     3. Caminhe normalmente.<br>
     4. O caminho será desenhado no mapa.<br>
-    5. Toque em PARAR TRILHA quando terminar.
+    5. Toque em PARAR TRILHA quando terminar.<br>
+    6. Para voltar, toque em VOLTAR PELO CAMINHO.
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -184,12 +195,15 @@ let circuloPrecisao = null;
 let watchId = null;
 
 let gravando = false;
+let retornando = false;
 
 let pontosTrilha = [];
 let ultimoPonto = null;
 let distanciaTotal = 0;
 
 let linhaTrilha = null;
+let linhaRetorno = null;
+let marcadorInicio = null;
 
 const CHAVE_TRILHA = "minha_trilha_gps";
 
@@ -219,6 +233,16 @@ function iniciarMapa(){
             color:"#f59e0b",
             weight:5,
             opacity:0.9
+        }
+    ).addTo(mapa);
+
+    linhaRetorno = L.polyline(
+        [],
+        {
+            color:"#2563eb",
+            weight:6,
+            opacity:0.95,
+            dashArray:"10,8"
         }
     ).addTo(mapa);
 
@@ -416,6 +440,15 @@ function atualizarGPS(pos){
             lon
         );
     }
+
+    // acompanha o retorno pelo caminho gravado
+    if(retornando){
+
+        atualizarRetorno(
+            lat,
+            lon
+        );
+    }
 }
 
 
@@ -488,6 +521,11 @@ function registrarPonto(
 
 function iniciarGravacao(){
 
+    if(retornando){
+
+        pararRetorno();
+    }
+
     if(!navigator.geolocation){
 
         alert(
@@ -538,6 +576,230 @@ function pararGravacao(){
         "Trilha parada e salva neste celular.";
 }
 
+
+
+// =====================================================
+// RETORNO PELO CAMINHO GRAVADO
+// =====================================================
+
+function iniciarRetorno(){
+
+    if(gravando){
+
+        alert(
+            "Pare a gravação da trilha antes de iniciar o retorno."
+        );
+
+        return;
+    }
+
+    if(pontosTrilha.length < 2){
+
+        alert(
+            "Ainda não existe uma trilha suficiente para retornar."
+        );
+
+        return;
+    }
+
+    retornando = true;
+
+    // Desenha a trilha de retorno em azul.
+    const caminhoVolta =
+        [...pontosTrilha]
+        .reverse()
+        .map(
+            p => [p.lat,p.lon]
+        );
+
+    linhaRetorno.setLatLngs(
+        caminhoVolta
+    );
+
+    // Marca o ponto inicial da trilha.
+    const inicio = pontosTrilha[0];
+
+    if(marcadorInicio){
+
+        marcadorInicio.setLatLng(
+            [inicio.lat,inicio.lon]
+        );
+
+    }else{
+
+        marcadorInicio =
+            L.circleMarker(
+                [inicio.lat,inicio.lon],
+                {
+                    radius:8,
+                    color:"#16a34a",
+                    fillColor:"#22c55e",
+                    fillOpacity:1,
+                    weight:3
+                }
+            ).addTo(mapa);
+
+        marcadorInicio.bindPopup(
+            "🏁 Ponto inicial"
+        );
+    }
+
+    document.getElementById("status")
+        .textContent =
+        "🔵 RETORNO ATIVO";
+
+    document.getElementById("mensagem")
+        .textContent =
+        "Siga a linha azul até o ponto inicial.";
+
+    atualizarRetorno(
+        null,
+        null
+    );
+}
+
+
+function atualizarRetorno(
+    lat,
+    lon
+){
+
+    if(!retornando){
+
+        return;
+    }
+
+    // Quando chamado sem posição, apenas prepara a mensagem.
+    if(lat === null || lon === null){
+
+        document.getElementById("mensagem")
+            .textContent =
+            "Siga a linha azul até o ponto inicial.";
+
+        return;
+    }
+
+    if(!pontosTrilha.length){
+
+        return;
+    }
+
+    // Encontra o ponto gravado mais próximo da posição atual.
+    let indiceMaisProximo = 0;
+    let menorDistancia = Infinity;
+
+    for(
+        let i = 0;
+        i < pontosTrilha.length;
+        i++
+    ){
+
+        const d =
+            distanciaMetros(
+                lat,
+                lon,
+                pontosTrilha[i].lat,
+                pontosTrilha[i].lon
+            );
+
+        if(d < menorDistancia){
+
+            menorDistancia = d;
+            indiceMaisProximo = i;
+        }
+    }
+
+    // Soma a distância restante até o primeiro ponto.
+    let restante = menorDistancia;
+
+    for(
+        let i = indiceMaisProximo;
+        i > 0;
+        i--
+    ){
+
+        restante +=
+            distanciaMetros(
+                pontosTrilha[i].lat,
+                pontosTrilha[i].lon,
+                pontosTrilha[i-1].lat,
+                pontosTrilha[i-1].lon
+            );
+    }
+
+    let textoDistancia;
+
+    if(restante < 1000){
+
+        textoDistancia =
+            Math.round(restante) + " m";
+
+    }else{
+
+        textoDistancia =
+            (restante / 1000).toFixed(2) + " km";
+    }
+
+    if(menorDistancia <= 12){
+
+        document.getElementById("mensagem")
+            .textContent =
+            "🏁 Você está no caminho. Faltam " +
+            textoDistancia +
+            " até o ponto inicial.";
+
+    }else{
+
+        document.getElementById("mensagem")
+            .textContent =
+            "🔵 Retorno ativo — faltam " +
+            textoDistancia +
+            ". Siga a linha azul.";
+    }
+
+    // Chegou ao ponto inicial.
+    const distanciaInicio =
+        distanciaMetros(
+            lat,
+            lon,
+            pontosTrilha[0].lat,
+            pontosTrilha[0].lon
+        );
+
+    if(distanciaInicio <= 10){
+
+        document.getElementById("status")
+            .textContent =
+            "🏁 CHEGOU AO INÍCIO";
+
+        document.getElementById("mensagem")
+            .textContent =
+            "Você chegou ao ponto inicial da trilha.";
+
+        retornando = false;
+    }
+}
+
+
+function pararRetorno(){
+
+    retornando = false;
+
+    if(linhaRetorno){
+
+        linhaRetorno.setLatLngs([]);
+    }
+
+    document.getElementById("status")
+        .textContent =
+        watchId !== null
+        ? "🟢 GPS FUNCIONANDO"
+        : "⏹ GPS PARADO";
+
+    document.getElementById("mensagem")
+        .textContent =
+        "Retorno parado. A trilha continua salva neste celular.";
+}
 
 // =====================================================
 // MÉTRICAS
@@ -649,6 +911,25 @@ function carregarTrilha(){
 
         if(pontosTrilha.length){
 
+            const inicio =
+                pontosTrilha[0];
+
+            marcadorInicio =
+                L.circleMarker(
+                    [inicio.lat,inicio.lon],
+                    {
+                        radius:8,
+                        color:"#16a34a",
+                        fillColor:"#22c55e",
+                        fillOpacity:1,
+                        weight:3
+                    }
+                ).addTo(mapa);
+
+            marcadorInicio.bindPopup(
+                "🏁 Ponto inicial"
+            );
+
             const ultimo =
                 pontosTrilha[
                     pontosTrilha.length-1
@@ -678,7 +959,14 @@ function carregarTrilha(){
 
 function limparTrilha(){
 
-    if(gravando){
+    if(gravando || retornando){
+
+        alert(
+            "Pare a gravação ou o retorno antes de limpar."
+        );
+
+        return;
+    }
 
         alert(
             "Pare a gravação antes de limpar."
