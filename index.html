@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Minha Trilha GPS</title>
+<style>
+body{font-family:Arial;background:#111827;color:white;padding:20px}
+.card{background:#1f2937;padding:20px;border-radius:15px;margin-bottom:15px}
+button{width:100%;padding:16px;border:0;border-radius:10px;background:#22c55e;font-size:18px;font-weight:bold}
+#status{font-size:22px;font-weight:bold}
+p{font-size:18px}
+</style>
+</head>
+<body>
+
+<h1>🧭 Minha Trilha GPS</h1>
+
+<div class="card">
+<div id="status">⏳ Aguardando GPS</div>
+<p id="mensagem">Toque no botão para testar.</p>
+</div>
+
+<div class="card">
+<p>Latitude: <b id="lat">--</b></p>
+<p>Longitude: <b id="lon">--</b></p>
+<p>Precisão: <b id="precisao">--</b></p>
+<p>Altitude: <b id="altitude">--</b></p>
+</div>
+
+<button onclick="testarGPS()">🛰️ TESTAR GPS</button>
+
+<script>
+function testarGPS(){
+
+if(!navigator.geolocation){
+document.getElementById("status").textContent="❌ GPS não disponível";
+return;
+}
+
+document.getElementById("status").textContent="🛰️ Procurando GPS...";
+document.getElementById("mensagem").textContent="Aguarde alguns segundos...";
+
+navigator.geolocation.watchPosition(
+
+function(pos){
+
+let c=pos.coords;
+
+document.getElementById("status").textContent="🟢 GPS FUNCIONANDO";
+
+document.getElementById("mensagem").textContent=
+"Localização recebida com sucesso!";
+
+document.getElementById("lat").textContent=
+c.latitude.toFixed(6);
+
+document.getElementById("lon").textContent=
+c.longitude.toFixed(6);
+
+document.getElementById("precisao").textContent=
+Math.round(c.accuracy)+" metros";
+
+document.getElementById("altitude").textContent=
+c.altitude==null?"--":Math.round(c.altitude)+" metros";
+
+},
+
+function(erro){
+
+document.getElementById("status").textContent=
+"❌ ERRO GPS";
+
+document.getElementById("mensagem").textContent=
+"Erro: "+erro.message+" | Código: "+erro.code;
+
+},
+
+{
+enableHighAccuracy:true,
+maximumAge:1000,
+timeout:30000
+}
+
+);
+
+}
+</script>
+
+</body>
+</html>
