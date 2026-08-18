@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Minha Trilha GPS</title>
+
+<link rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
+<style>
+*{box-sizing:border-box}
+
+body{
+    font-family:Arial,sans-serif;
+    background:#111827;
+    color:white;
+    padding:20px;
+    margin:0;
+}
+
+h1{
+    font-size:28px;
+    margin:0 0 18px;
+}
+
+.card{
+    background:#222c3d;
+    padding:20px;
+    border-radius:18px;
+    margin-bottom:15px;
+}
+
+#status{
+    font-size:22px;
+    font-weight:bold;
+}
+
+#mensagem{
+    margin-top:10px;
+    font-size:16px;
+    color:#9ca3af;
+}
+
+.info{
+    font-size:18px;
+    line-height:2;
+}
+
+.info div{
+    display:flex;
+    justify-content:space-between;
+    border-bottom:1px solid #374151;
+}
+
+.info div:last-child{
+    border-bottom:0;
+}
+
+#map{
+    height:350px;
+    width:100%;
+    border-radius:18px;
+    overflow:hidden;
+    margin-top:15px;
+}
+
+button{
+    width:100%;
+    padding:18px;
+    margin-top:10px;
+    border:0;
+    border-radius:14px;
+    font-size:18px;
+    font-weight:bold;
+    background:#22c55e;
+    color:white;
+}
+
+button.parar{
+    background:#374151;
+}
+
+.small{
+    color:#9ca3af;
+    font-size:15px;
+    line-height:1.5;
+}
+</style>
+</head>
+
+<body>
+
+<h1>🧭 Minha Trilha GPS</h1>
+
+<div class="card">
+    <div id="status">🟡 Aguardando GPS</div>
+    <div id="mensagem">Toque em TESTAR GPS para iniciar.</div>
+</div>
+
+<div class="card info">
+    <div><span>Latitude</span><b id="lat">--</b></div>
+    <div><span>Longitude</span><b id="lon">--</b></div>
+    <div><span>Precisão</span><b id="precisao">--</b></div>
+    <div><span>Altitude</span><b id="altitude">--</b></div>
+</div>
+
+<div class="card">
+    <div id="map"></div>
+</div>
+
+<div class="card">
+    <button onclick="testarGPS()">🛰️ TESTAR GPS</button>
+    <button class="parar" onclick="pararGPS()">⏹ PARAR</button>
+</div>
+
+<div class="card small">
+    <b>Próxima etapa:</b> depois de confirmar o mapa e a posição funcionando,
+    vamos acrescentar a gravação da trilha, distância percorrida e retorno pelo caminho.
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+let mapa;
+let marcador;
+let precisao;
+let watchId = null;
+
+const linha = [];
+
+function iniciarMapa(){
+    mapa = L.map("map").setView([-22.1547,-51.4534],16);
+
+    L.tileLayer(
+        "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        {
+            maxZoom:19,
+            attribution:"&copy; OpenStreetMap"
+        }
+    ).addTo(mapa);
+}
+
+function atualizarGPS(pos){
+    const c = pos.coords;
+
+    const lat = c.latitude;
+    const lon = c.longitude;
+
+    document.getElementById("status").textContent =
+        "🟢 GPS FUNCIONANDO";
+
+    document.getElementById("mensagem").textContent =
+        "Posição recebida corretamente.";
+
+    document.getElementById("lat").textContent =
+        lat.toFixed(6);
+
+    document.getElementById("lon").textContent =
+        lon.toFixed(6);
+
+    document.getElementById("precisao").textContent =
+        Math.round(c.accuracy) + " m";
+
+    document.getElementById("altitude").textContent =
+        c.altitude == null ? "--" : Math.round(c.altitude) + " m";
+
+    const ponto = [lat,lon];
+
+    if(!marcador){
+        marcador = L.marker(ponto).addTo(mapa);
+        marcador.bindPopup("📍 Minha posição");
+    }else{
+        marcador.setLatLng(ponto);
+    }
+
+    if(precisao){
+        precisao.setLatLng(ponto);
+        precisao.setRadius(c.accuracy);
+    }else{
+        precisao = L.circle(ponto,{
+            radius:c.accuracy,
+            color:"#22c55e",
+            fillOpacity:0.12
+        }).addTo(mapa);
+    }
+
+    mapa.setView(ponto,17);
+}
+
+function erroGPS(err){
+    let texto = "Erro ao obter GPS.";
+
+    if(err.code === 1) texto =
+        "Permissão de localização negada.";
+    else if(err.code === 2) texto =
+        "Posição indisponível.";
+    else if(err.code === 3) texto =
+        "Tempo esgotado para obter GPS.";
+
+    document.getElementById("status").textContent =
+        "🔴 ERRO GPS";
+
+    document.getElementById("mensagem").textContent =
+        texto;
+}
+
+function testarGPS(){
+    if(!navigator.geolocation){
+        document.getElementById("status").textContent =
+            "🔴 GPS NÃO DISPONÍVEL";
+        return;
+    }
+
+    if(watchId !== null){
+        navigator.geolocation.clearWatch(watchId);
+    }
+
+    document.getElementById("status").textContent =
+        "🟡 PROCURANDO GPS...";
+
+    document.getElementById("mensagem").textContent =
+        "Aguarde alguns segundos...";
+
+    watchId = navigator.geolocation.watchPosition(
+        atualizarGPS,
+        erroGPS,
+        {
+            enableHighAccuracy:true,
+            maximumAge:1000,
+            timeout:15000
+        }
+    );
+}
+
+function pararGPS(){
+    if(watchId !== null){
+        navigator.geolocation.clearWatch(watchId);
+        watchId = null;
+    }
+
+    document.getElementById("status").textContent =
+        "⏹ GPS PARADO";
+
+    document.getElementById("mensagem").textContent =
+        "Toque em TESTAR GPS para iniciar novamente.";
+}
+
+iniciarMapa();
+</script>
+
+</body>
+</html>
