@@ -49,7 +49,7 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;font-family:Arial,sans
 
 .metricas{
     display:grid;
-    grid-template-columns:repeat(3,1fr);
+    grid-template-columns:repeat(4,1fr);
     gap:6px;
     margin-bottom:6px;
 }
@@ -91,7 +91,7 @@ button:active{transform:scale(.985)}
 .parar{background:#4b5563}
 .voltar{background:#2563eb}
 .pararRetorno{background:#4b5563}
-.limpar{background:#dc2626}
+.limpar{background:#dc2626}.marcar{background:#7c3aed}
 
 .linha2{
     display:grid;
@@ -159,6 +159,12 @@ button:active{transform:scale(.985)}
             <b id="pontos">0</b>
             <span>PONTOS</span>
         </div>
+
+<div class="metrica">
+    <b id="pontosMarcados">0</b>
+    <span>MARCADOS</span>
+</div>
+
     </div>
 
     
@@ -445,6 +451,9 @@ function pararRetorno(){
 }
 
 function limparTrilha(){
+
+    limparPontosMarcados();
+
     gravando=false;
     retornando=false;
 
@@ -519,7 +528,198 @@ function receberErro(err){
     mostrarErro(msg);
 }
 
+
+/* =====================================================
+   PONTOS MARCADOS MANUALMENTE
+   ===================================================== */
+
+let pontosMarcados = [];
+let marcadoresManuais = [];
+
+const CHAVE_PONTOS_MARCADOS = "minha_trilha_pontos_marcados";
+
+function marcarPontoManual(){
+
+    if(!navigator.geolocation){
+        alert("GPS não disponível.");
+        return;
+    }
+
+    // Usa a última posição recebida para marcar imediatamente.
+    if(ultimaPosicao){
+        salvarPontoMarcado(
+            ultimaPosicao.lat,
+            ultimaPosicao.lon
+        );
+        return;
+    }
+
+    // Se ainda não houver posição, pede uma leitura única.
+    navigator.geolocation.getCurrentPosition(
+        function(pos){
+            salvarPontoMarcado(
+                pos.coords.latitude,
+                pos.coords.longitude
+            );
+        },
+        function(){
+            alert("Aguarde o GPS obter sua posição.");
+        },
+        {
+            enableHighAccuracy:true,
+            maximumAge:1000,
+            timeout:10000
+        }
+    );
+}
+
+function salvarPontoMarcado(lat, lon){
+
+    const numero = pontosMarcados.length + 1;
+
+    const nome = prompt(
+        "Nome do ponto marcado:",
+        "Ponto " + numero
+    );
+
+    if(nome === null){
+        return;
+    }
+
+    const ponto = {
+        id:Date.now(),
+        nome:nome.trim() || ("Ponto " + numero),
+        lat:lat,
+        lon:lon,
+        hora:new Date().toISOString()
+    };
+
+    pontosMarcados.push(ponto);
+
+    const marcador = L.marker(
+        [lat,lon],
+        {
+            title:ponto.nome
+        }
+    ).addTo(map);
+
+    marcador.bindPopup(
+        "<b>📍 " +
+        escapeHtml(ponto.nome) +
+        "</b><br>" +
+        lat.toFixed(6) +
+        "<br>" +
+        lon.toFixed(6)
+    );
+
+    marcadoresManuais.push(marcador);
+
+    salvarPontosMarcados();
+    atualizarContadorMarcados();
+
+    document.getElementById("mensagem").textContent =
+        "📍 Ponto marcado: " + ponto.nome;
+}
+
+function atualizarContadorMarcados(){
+
+    const elemento =
+        document.getElementById("pontosMarcados");
+
+    if(elemento){
+        elemento.textContent =
+            pontosMarcados.length;
+    }
+}
+
+function salvarPontosMarcados(){
+
+    localStorage.setItem(
+        CHAVE_PONTOS_MARCADOS,
+        JSON.stringify(pontosMarcados)
+    );
+}
+
+function carregarPontosMarcados(){
+
+    const dados =
+        localStorage.getItem(
+            CHAVE_PONTOS_MARCADOS
+        );
+
+    if(!dados){
+        return;
+    }
+
+    try{
+
+        pontosMarcados =
+            JSON.parse(dados) || [];
+
+        pontosMarcados.forEach(ponto => {
+
+            const marcador =
+                L.marker(
+                    [ponto.lat,ponto.lon],
+                    {title:ponto.nome}
+                ).addTo(map);
+
+            marcador.bindPopup(
+                "<b>📍 " +
+                escapeHtml(ponto.nome) +
+                "</b><br>" +
+                Number(ponto.lat).toFixed(6) +
+                "<br>" +
+                Number(ponto.lon).toFixed(6)
+            );
+
+            marcadoresManuais.push(marcador);
+        });
+
+        atualizarContadorMarcados();
+
+    }catch(e){
+
+        console.log(
+            "Erro ao carregar pontos marcados:",
+            e
+        );
+    }
+}
+
+function limparPontosMarcados(){
+
+    pontosMarcados = [];
+
+    marcadoresManuais.forEach(m => {
+
+        if(map.hasLayer(m)){
+            map.removeLayer(m);
+        }
+    });
+
+    marcadoresManuais = [];
+
+    localStorage.removeItem(
+        CHAVE_PONTOS_MARCADOS
+    );
+
+    atualizarContadorMarcados();
+}
+
+function escapeHtml(text){
+
+    return String(text)
+        .replace(/&/g,"&amp;")
+        .replace(/</g,"&lt;")
+        .replace(/>/g,"&gt;")
+        .replace(/"/g,"&quot;")
+        .replace(/'/g,"&#039;");
+}
+
+
 iniciarMapa();
+carregarPontosMarcados();
 </script>
 
 
