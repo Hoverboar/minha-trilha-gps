@@ -2,1113 +2,607 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>Minha Trilha GPS</title>
-
-<link rel="stylesheet"
-href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
 *{box-sizing:border-box}
-html,body{
-    width:100%;
-    height:100%;
-    margin:0;
-    padding:0;
-    overflow:hidden;
-    font-family:Arial,sans-serif;
-    background:#000;
-    color:white;
-}
-body{position:relative}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;font-family:Arial,sans-serif;background:#0b1220;color:#fff}
+button{font-family:inherit;border:0;cursor:pointer;color:#fff}
+.hidden{display:none!important}
 
-/* MAPA: sempre ocupa 100% da tela */
-#map{
-    position:fixed;
-    inset:0;
-    width:100vw;
-    height:100vh;
-    z-index:1;
+/* PRINCIPAL */
+#telaPrincipal{
+  width:100%;height:100%;display:flex;flex-direction:column;
+  background:linear-gradient(180deg,#0c1527,#111b2e);
 }
+.cabecalho{
+  height:72px;display:flex;align-items:center;padding:0 20px;
+  font-size:25px;font-weight:800;background:#0d1729;
+  border-bottom:1px solid #1f2b40;
+}
+.principalConteudo{
+  flex:1;display:flex;flex-direction:column;justify-content:center;
+  padding:25px;gap:18px;max-width:620px;width:100%;margin:auto;
+}
+.logoCard{
+  text-align:center;margin-bottom:8px;
+}
+.logoCard .icone{font-size:58px}
+.logoCard h1{margin:7px 0 3px;font-size:29px}
+.logoCard p{margin:0;color:#9ca8ba;font-size:15px}
+.estadoPrincipal{
+  background:#172238;border-radius:18px;padding:14px 16px;
+  text-align:center;border:1px solid #25334a;
+}
+.estadoPrincipal .linhaEstado{font-size:19px;font-weight:800}
+.estadoPrincipal small{display:block;color:#9ca8ba;margin-top:5px}
+.btnPrincipal{
+  width:100%;min-height:76px;border-radius:18px;font-size:21px;font-weight:800;
+  box-shadow:0 5px 14px rgba(0,0,0,.25);
+}
+.btnCriar{background:#f59e0b}
+.btnTrilhas{background:#2563eb}
+.btnImportar{background:#4b5563}
+.btnPrincipal:active{transform:scale(.99)}
+.rodape{padding:12px;text-align:center;color:#69778b;font-size:12px}
 
-/* Barra superior pequena, sobre o mapa */
-.topo{
-    position:fixed;
-    top:8px;
-    left:10px;
-    right:10px;
-    z-index:1000;
-    pointer-events:none;
+/* LISTA DE TRILHAS */
+#telaTrilhas{
+  width:100%;height:100%;display:flex;flex-direction:column;background:#0b1220;
 }
-.statusBox{
-    display:inline-block;
-    max-width:92%;
-    background:rgba(8,15,28,.82);
-    border:1px solid rgba(255,255,255,.16);
-    border-radius:16px;
-    padding:8px 12px;
-    box-shadow:0 4px 16px rgba(0,0,0,.38);
-    backdrop-filter:blur(5px);
+.barra{
+  height:64px;display:flex;align-items:center;gap:12px;padding:0 14px;
+  background:#0d1729;border-bottom:1px solid #22304a;
 }
-#status{
-    font-size:18px;
-    font-weight:bold;
-    line-height:1.15;
+.btnVoltar{background:transparent;font-size:31px;width:42px;height:44px}
+.barraTitulo{font-size:22px;font-weight:800}
+.lista{
+  flex:1;overflow-y:auto;padding:12px;
 }
-#mensagem{
-    margin-top:4px;
-    color:#d1d5db;
-    font-size:12px;
-    line-height:1.2;
+.itemTrilha{
+  background:#172238;border:1px solid #293851;border-radius:15px;
+  padding:14px;margin-bottom:10px;
 }
-.coordenadas{
-    position:fixed;
-    top:70px;
-    left:10px;
-    z-index:1000;
-    background:rgba(8,15,28,.72);
-    border-radius:12px;
-    padding:6px 9px;
-    font-size:11px;
-    line-height:1.35;
-    color:#e5e7eb;
-    box-shadow:0 3px 12px rgba(0,0,0,.30);
-    pointer-events:none;
-    backdrop-filter:blur(4px);
+.itemTitulo{font-size:18px;font-weight:800}
+.itemInfo{color:#aab5c5;font-size:13px;margin-top:6px}
+.itemAcoes{display:flex;gap:8px;margin-top:11px}
+.btnMini{
+  flex:1;padding:11px;border-radius:11px;font-weight:800;background:#2563eb;
 }
-.coordenadas b{color:white}
+.btnMini.continuar{background:#f59e0b}
+.vazio{text-align:center;color:#8e9bad;padding:45px 20px}
 
-/* Painel flutuante: não reduz o mapa */
-.controles{
-    position:fixed;
-    left:10px;
-    right:10px;
-    bottom:8px;
-    z-index:1000;
-    background:rgba(7,14,27,.78);
-    border:1px solid rgba(255,255,255,.12);
-    border-radius:20px;
-    padding:8px;
-    box-shadow:0 -5px 25px rgba(0,0,0,.38);
-    backdrop-filter:blur(5px);
+/* MAPA / GRAVAÇÃO */
+#telaMapa{position:fixed;inset:0;background:#000}
+#map{position:absolute;inset:0;width:100%;height:100%;z-index:1}
+.mapaBarra{
+  position:absolute;top:8px;left:8px;right:8px;height:58px;z-index:1000;
+  display:flex;align-items:center;gap:8px;pointer-events:none;
 }
-
-/* Indicadores compactos */
-.metricas{
-    display:flex;
-    gap:7px;
-    margin-bottom:7px;
+.mapaBarra .btnVoltar{
+  pointer-events:auto;background:rgba(8,15,28,.82);border-radius:13px;
 }
-.metrica{
-    flex:1;
-    min-width:0;
-    text-align:center;
-    background:rgba(18,29,48,.90);
-    border-radius:12px;
-    padding:6px 3px;
+.nomeMapa{
+  pointer-events:none;background:rgba(8,15,28,.82);padding:11px 14px;
+  border-radius:13px;font-size:19px;font-weight:800;
+  max-width:calc(100% - 60px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
-.metrica b{
-    display:block;
-    font-size:20px;
-    line-height:1.05;
+.statusMapa{
+  position:absolute;top:73px;left:10px;z-index:1000;
+  background:rgba(8,15,28,.84);border-radius:14px;padding:9px 12px;
+  box-shadow:0 4px 14px rgba(0,0,0,.35);font-weight:800;
 }
-.metrica span{
-    color:#9ca3af;
-    font-size:10px;
+.statusMapa small{display:block;color:#c5ceda;font-weight:400;margin-top:3px}
+.infoMapa{
+  position:absolute;left:10px;right:10px;bottom:9px;z-index:1000;
+  background:rgba(7,14,27,.84);border:1px solid rgba(255,255,255,.10);
+  border-radius:19px;padding:8px;backdrop-filter:blur(5px);
 }
-
-/* Botões sobre o mapa */
-.botoes{
-    display:grid;
-    grid-template-columns:1fr 1fr;
-    gap:7px;
-}
-button{
-    width:100%;
-    padding:9px 5px;
-    margin:0;
-    border:0;
-    border-radius:12px;
-    font-size:13px;
-    font-weight:bold;
-    color:white;
-    min-height:42px;
-    box-shadow:0 2px 6px rgba(0,0,0,.30);
-}
-.gps{background:#2563eb;grid-column:1/-1}
-.gravar{background:#f59e0b}
-.parar{background:#374151}
-.voltar{background:#2563eb}
-.pararRetorno{background:#4b5563}
-.limpar{background:#dc2626}
-
-/* O zoom também fica sobre o mapa, sem criar espaço reservado */
-.leaflet-control-zoom{
-    margin-top:120px!important;
-    margin-left:10px!important;
-}
-.leaflet-control-attribution{font-size:10px}
+.metricas{display:flex;gap:7px;margin-bottom:7px}
+.metrica{flex:1;text-align:center;background:rgba(18,29,48,.93);border-radius:12px;padding:7px 3px}
+.metrica b{display:block;font-size:19px;line-height:1.1}
+.metrica span{display:block;color:#9ca3af;font-size:10px;margin-top:2px}
+.botoesMapa{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.btnMapa{min-height:44px;border-radius:12px;font-size:14px;font-weight:800}
+.btnGravar{background:#f59e0b}
+.btnGravando{background:#dc2626}
+.btnParar{background:#4b5563}
+.btnMarcar{background:#7c3aed}
+.btnLimpar{background:#b91c1c}
+.btnMapa:active{transform:scale(.99)}
+.leaflet-control-attribution{font-size:9px}
 
 @media(max-height:700px){
-    .topo{top:5px}
-    .coordenadas{top:64px}
-    .controles{
-        bottom:5px;
-        padding:6px;
-        border-radius:16px;
-    }
-    .metricas{gap:5px;margin-bottom:5px}
-    .metrica{padding:5px 2px}
-    .metrica b{font-size:17px}
-    button{
-        min-height:37px;
-        padding:7px 4px;
-        font-size:12px;
-    }
-}
-
-@media(min-width:700px){
-    .controles{
-        left:50%;
-        right:auto;
-        transform:translateX(-50%);
-        width:620px;
-    }
+ .cabecalho{height:58px;font-size:21px}
+ .principalConteudo{padding:18px;gap:12px}
+ .logoCard .icone{font-size:42px}
+ .logoCard h1{font-size:25px}
+ .btnPrincipal{min-height:61px;font-size:18px}
+ .infoMapa{bottom:5px}
+ .metrica{padding:5px 2px}.metrica b{font-size:17px}
+ .btnMapa{min-height:39px;font-size:12px}
 }
 </style>
 </head>
-
 <body>
-<div id="map"></div>
-<div class="topo"><div class="statusBox">
-<div id="status">🟡 Aguardando GPS</div>
-<div id="mensagem">Toque em TESTAR GPS para iniciar.</div>
-</div></div>
-<div class="coordenadas">
-LAT: <b id="lat">--</b><br>
-LON: <b id="lon">--</b><br>
-PREC: <b id="precisao">--</b> &nbsp; ALT: <b id="altitude">--</b>
-</div>
-<div class="controles">
-<div class="metricas">
-<div class="metrica"><b id="distancia">0 m</b><span>DISTÂNCIA</span></div>
-<div class="metrica"><b id="velocidade">0.0 km/h</b><span>VELOCIDADE</span></div>
-<div class="metrica"><b id="pontos">0</b><span>PONTOS</span></div>
-</div>
-<div class="botoes">
-<button class="gps" onclick="testarGPS()">🛰️ TESTAR GPS</button>
-<button class="gravar" onclick="iniciarGravacao()">🔴 INICIAR TRILHA</button>
-<button class="parar" onclick="pararGravacao()">⏹ PARAR TRILHA</button>
-<button class="voltar" onclick="iniciarRetorno()">🔵 VOLTAR PELO CAMINHO</button>
-<button class="pararRetorno" onclick="pararRetorno()">⏹ PARAR RETORNO</button>
-<button class="limpar" onclick="limparTrilha()">🗑️ LIMPAR TRILHA</button>
-</div></div>
+
+<!-- ================= PRINCIPAL ================= -->
+<section id="telaPrincipal">
+  <div class="cabecalho">🧭 Minha Trilha GPS</div>
+
+  <div class="principalConteudo">
+    <div class="logoCard">
+      <div class="icone">🗺️</div>
+      <h1>Minhas Trilhas</h1>
+      <p>Grave, marque pontos e acompanhe o caminho.</p>
+    </div>
+
+    <div class="estadoPrincipal">
+      <div id="estadoPrincipalTexto" class="linhaEstado">⚪ PRONTO</div>
+      <small id="estadoPrincipalSub">Nenhuma trilha sendo gravada.</small>
+    </div>
+
+    <button id="btnCriarPrincipal" class="btnPrincipal btnCriar" onclick="acaoCriarTrilha()">
+      🔴 CRIAR TRILHA
+    </button>
+
+    <button class="btnPrincipal btnTrilhas" onclick="abrirListaTrilhas()">
+      🗺️ TRILHAS
+    </button>
+
+    <div class="rodape">As trilhas ficam salvas localmente neste celular.</div>
+  </div>
+</section>
+
+<!-- ================= LISTA ================= -->
+<section id="telaTrilhas" class="hidden">
+  <div class="barra">
+    <button class="btnVoltar" onclick="voltarPrincipal()">‹</button>
+    <div class="barraTitulo">Trilhas</div>
+  </div>
+  <div id="listaTrilhas" class="lista"></div>
+</section>
+
+<!-- ================= MAPA ================= -->
+<section id="telaMapa" class="hidden">
+  <div id="map"></div>
+
+  <div class="mapaBarra">
+    <button class="btnVoltar" onclick="voltarPrincipal()">‹</button>
+    <div id="nomeMapa" class="nomeMapa">Trilha</div>
+  </div>
+
+  <div class="statusMapa">
+    <span id="statusMapa">⚪ NÃO GRAVANDO</span>
+    <small id="mensagemMapa">GPS aguardando...</small>
+  </div>
+
+  <div class="infoMapa">
+    <div class="metricas">
+      <div class="metrica"><b id="distancia">0 m</b><span>DISTÂNCIA</span></div>
+      <div class="metrica"><b id="velocidade">0.0 km/h</b><span>VELOCIDADE</span></div>
+      <div class="metrica"><b id="pontos">0</b><span>PONTOS GPS</span></div>
+    </div>
+    <div class="botoesMapa">
+      <button id="btnGravarMapa" class="btnMapa btnGravar" onclick="acaoBotaoGravacao()">🔴 INICIAR</button>
+      <button class="btnMapa btnParar" onclick="pararGravacao()">⏹ PARAR</button>
+      <button class="btnMapa btnMarcar" onclick="marcarPonto()">📍 MARCAR PONTO</button>
+      <button class="btnMapa btnLimpar" onclick="limparAtual()">🗑️ LIMPAR</button>
+    </div>
+  </div>
+</section>
+
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
 <script>
+let mapa=null;
+let marcador=null;
+let circuloPrecisao=null;
+let watchId=null;
 
-let mapa;
-let marcador = null;
-let circuloPrecisao = null;
-let watchId = null;
+let gravando=false;
+let pontosTrilha=[];
+let ultimoPonto=null;
+let distanciaTotal=0;
+let ultimaPosicaoVelocidade=null;
+let ultimaHoraVelocidade=null;
+let linhaTrilha=null;
+let marcadorInicio=null;
+let trilhaAtualId=null;
+let nomeTrilhaAtual="";
+let modoVisualizacao="principal";
 
-let gravando = false;
-let retornando = false;
+const CHAVE_TRILHAS="minha_trilhas_gps_v2";
+const CHAVE_ATIVA="minha_trilha_ativa_gps_v2";
 
-let pontosTrilha = [];
-let ultimoPonto = null;
-let distanciaTotal = 0;
-let ultimaPosicaoVelocidade = null;
-let ultimaHoraVelocidade = null;
+function el(id){return document.getElementById(id)}
 
-let linhaTrilha = null;
-let linhaRetorno = null;
-let marcadorInicio = null;
+function obterTrilhas(){
+  try{return JSON.parse(localStorage.getItem(CHAVE_TRILHAS)||"[]")}catch(e){return []}
+}
+function salvarLista(trilhas){
+  localStorage.setItem(CHAVE_TRILHAS,JSON.stringify(trilhas));
+}
 
-const CHAVE_TRILHA = "minha_trilha_gps";
+function formatarDistancia(m){
+  return m<1000 ? Math.round(m)+" m" : (m/1000).toFixed(2)+" km";
+}
 
-
-// =====================================================
-// MAPA
-// =====================================================
+function distanciaMetros(lat1,lon1,lat2,lon2){
+  const R=6371000, rad=Math.PI/180;
+  const dLat=(lat2-lat1)*rad, dLon=(lon2-lon1)*rad;
+  const a=Math.sin(dLat/2)**2+
+    Math.cos(lat1*rad)*Math.cos(lat2*rad)*Math.sin(dLon/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
 
 function iniciarMapa(){
+  mapa=L.map("map").setView([-21.4586,-51.9167],16);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{
+    maxZoom:19,attribution:"&copy; OpenStreetMap"
+  }).addTo(mapa);
 
-    mapa = L.map("map").setView(
-        [-22.1547,-51.4534],
-        16
-    );
-
-    L.tileLayer(
-        "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-        {
-            maxZoom:19,
-            attribution:"&copy; OpenStreetMap"
-        }
-    ).addTo(mapa);
-
-    linhaTrilha = L.polyline(
-        [],
-        {
-            color:"#ff8c00",
-            weight:6,
-            opacity:0.98
-        }
-    ).addTo(mapa);
-
-    linhaRetorno = L.polyline(
-        [],
-        {
-            color:"#2563eb",
-            weight:6,
-            opacity:0.95,
-            dashArray:"10,8"
-        }
-    ).addTo(mapa);
-
-    carregarTrilha();
+  linhaTrilha=L.polyline([],{color:"#ff3b00",weight:6,opacity:.98}).addTo(mapa);
+  iniciarGPS();
 }
 
-
-// =====================================================
-// DISTÂNCIA GPS
-// =====================================================
-
-function distanciaMetros(
-    lat1,
-    lon1,
-    lat2,
-    lon2
-){
-
-    const R = 6371000;
-    const rad = Math.PI / 180;
-
-    const dLat =
-        (lat2-lat1) * rad;
-
-    const dLon =
-        (lon2-lon1) * rad;
-
-    const a =
-        Math.sin(dLat/2) *
-        Math.sin(dLat/2) +
-
-        Math.cos(lat1*rad) *
-        Math.cos(lat2*rad) *
-
-        Math.sin(dLon/2) *
-        Math.sin(dLon/2);
-
-    return R *
-        2 *
-        Math.atan2(
-            Math.sqrt(a),
-            Math.sqrt(1-a)
-        );
+function iniciarGPS(){
+  if(!navigator.geolocation){
+    el("statusMapa").textContent="🔴 GPS NÃO DISPONÍVEL";
+    return;
+  }
+  if(watchId!==null) navigator.geolocation.clearWatch(watchId);
+  watchId=navigator.geolocation.watchPosition(atualizarGPS,erroGPS,{
+    enableHighAccuracy:true,maximumAge:1000,timeout:15000
+  });
 }
-
-
-// =====================================================
-// GPS
-// =====================================================
-
-function testarGPS(){
-
-    if(!navigator.geolocation){
-
-        document.getElementById("status")
-            .textContent =
-            "🔴 GPS NÃO DISPONÍVEL";
-
-        return;
-    }
-
-    if(watchId !== null){
-
-        navigator.geolocation.clearWatch(
-            watchId
-        );
-    }
-
-    document.getElementById("status")
-        .textContent =
-        "🟡 PROCURANDO GPS...";
-
-    document.getElementById("mensagem")
-        .textContent =
-        "Aguarde alguns segundos...";
-
-    watchId =
-        navigator.geolocation.watchPosition(
-
-            atualizarGPS,
-
-            erroGPS,
-
-            {
-                enableHighAccuracy:true,
-                maximumAge:1000,
-                timeout:15000
-            }
-
-        );
-}
-
-
-// =====================================================
-// POSIÇÃO RECEBIDA
-// =====================================================
 
 function atualizarGPS(pos){
+  const c=pos.coords, lat=c.latitude, lon=c.longitude;
 
-    const c = pos.coords;
+  let velocidade=0;
+  if(c.speed!=null && Number.isFinite(c.speed) && c.speed>=0){
+    velocidade=c.speed*3.6;
+  }else if(ultimaPosicaoVelocidade && ultimaHoraVelocidade){
+    const agora=Date.now(), segundos=(agora-ultimaHoraVelocidade)/1000;
+    if(segundos>0) velocidade=distanciaMetros(
+      ultimaPosicaoVelocidade.lat,ultimaPosicaoVelocidade.lon,lat,lon
+    )/segundos*3.6;
+  }
+  ultimaPosicaoVelocidade={lat,lon};
+  ultimaHoraVelocidade=Date.now();
 
-    const lat = c.latitude;
-    const lon = c.longitude;
+  el("velocidade").textContent=velocidade.toFixed(1)+" km/h";
 
-    // Velocidade em km/h. Usa a velocidade fornecida pelo GPS quando disponível;
-    // caso contrário, calcula pela distância entre duas posições.
-    let velocidadeKmh = 0;
+  if(marcador) mapa.removeLayer(marcador);
+  marcador=L.marker([lat,lon]).addTo(mapa);
 
-    if(c.speed != null && Number.isFinite(c.speed) && c.speed >= 0){
-        velocidadeKmh = c.speed * 3.6;
-    }else if(ultimaPosicaoVelocidade && ultimaHoraVelocidade){
-        const agora = Date.now();
-        const segundos = (agora - ultimaHoraVelocidade) / 1000;
-        if(segundos > 0){
-            const metros = distanciaMetros(
-                ultimaPosicaoVelocidade[0],
-                ultimaPosicaoVelocidade[1],
-                lat,
-                lon
-            );
-            velocidadeKmh = (metros / segundos) * 3.6;
-        }
-    }
+  if(c.accuracy){
+    if(circuloPrecisao) mapa.removeLayer(circuloPrecisao);
+    circuloPrecisao=L.circle([lat,lon],{radius:c.accuracy,color:"#22c55e",weight:2,fillOpacity:.08}).addTo(mapa);
+  }
 
-    // Evita valores absurdos causados por erro momentâneo do GPS.
-    if(!Number.isFinite(velocidadeKmh) || velocidadeKmh > 250){
-        velocidadeKmh = 0;
-    }
+  if(gravarandoOuNao()){
+    registrarPonto(lat,lon);
+  }
 
-    document.getElementById("velocidade")
-        .textContent = velocidadeKmh.toFixed(1) + " km/h";
+  el("statusMapa").textContent=gravando ? "■ GRAVANDO TRILHA" : "⚪ NÃO GRAVANDO";
+  el("mensagemMapa").textContent=gravando
+    ? "A trilha está sendo salva neste celular."
+    : "GPS funcionando. Pronto para gravar.";
+}
 
-    ultimaPosicaoVelocidade = [lat, lon];
-    ultimaHoraVelocidade = Date.now();
+function gravarandoOuNao(){return gravando===true}
 
-    document.getElementById("status")
-        .textContent =
-        gravando
-        ? "🔴 GRAVANDO TRILHA"
-        : "🟢 GPS FUNCIONANDO";
+function iniciarNovaTrilha(){
+  let nome=prompt("Nome da trilha:");
+  if(nome===null)return;
+  nome=nome.trim();
+  if(!nome) nome="Trilha "+new Date().toLocaleString("pt-BR");
 
-    document.getElementById("mensagem")
-        .textContent =
-        gravando
-        ? "Registrando sua posição..."
-        : "Posição recebida corretamente.";
+  if(gravando){
+    alert("Já existe uma trilha sendo gravada.");
+    return;
+  }
 
-    document.getElementById("lat")
-        .textContent =
-        lat.toFixed(6);
+  trilhaAtualId=Date.now().toString();
+  nomeTrilhaAtual=nome;
+  pontosTrilha=[];
+  ultimoPonto=null;
+  distanciaTotal=0;
+  ultimaPosicaoVelocidade=null;
+  ultimaHoraVelocidade=null;
+  linhaTrilha.setLatLngs([]);
+  if(marcadorInicio){mapa.removeLayer(marcadorInicio);marcadorInicio=null}
 
-    document.getElementById("lon")
-        .textContent =
-        lon.toFixed(6);
+  gravando=true;
+  salvarAtiva();
+  atualizarTelaMapa();
+  abrirMapa();
+  el("mensagemMapa").textContent="Caminhe normalmente. O caminho será desenhado.";
+}
 
-    document.getElementById("precisao")
-        .textContent =
-        Math.round(c.accuracy) + " m";
+function acaoCriarTrilha(){
+  if(gravando){
+    abrirMapa();
+    return;
+  }
+  iniciarNovaTrilha();
+}
 
-    document.getElementById("altitude")
-        .textContent =
-        c.altitude == null
-        ? "--"
-        : Math.round(c.altitude) + " m";
-
-
-    const ponto = [lat,lon];
-
-
-    // marcador
-    if(!marcador){
-
-        marcador =
-            L.marker(ponto)
-            .addTo(mapa);
-
-        marcador.bindPopup(
-            "📍 Você está aqui"
-        );
-
+function acaoBotaoGravacao(){
+  if(gravando){
+    pararGravacao();
+  }else{
+    if(nomeTrilhaAtual){
+      gravando=true;
+      salvarAtiva();
+      atualizarTelaMapa();
     }else{
-
-        marcador.setLatLng(
-            ponto
-        );
+      iniciarNovaTrilha();
     }
-
-
-    // círculo de precisão
-    if(circuloPrecisao){
-
-        circuloPrecisao.setLatLng(
-            ponto
-        );
-
-        circuloPrecisao.setRadius(
-            c.accuracy
-        );
-
-    }else{
-
-        circuloPrecisao =
-            L.circle(
-                ponto,
-                {
-                    radius:c.accuracy,
-                    color:"#22c55e",
-                    fillOpacity:0.10
-                }
-            ).addTo(mapa);
-    }
-
-
-    // centraliza no usuário
-    mapa.setView(
-        ponto,
-        17
-    );
-
-
-    // grava a posição
-    if(gravando){
-
-        registrarPonto(
-            lat,
-            lon
-        );
-    }
-
-    // acompanha o retorno pelo caminho gravado
-    if(retornando){
-
-        atualizarRetorno(
-            lat,
-            lon
-        );
-    }
+  }
 }
 
+function registrarPonto(lat,lon){
+  if(!gravando)return;
 
-// =====================================================
-// GRAVAÇÃO
-// =====================================================
+  if(ultimoPonto){
+    const d=distanciaMetros(ultimoPonto.lat,ultimoPonto.lon,lat,lon);
+    if(d<5)return;
+    distanciaTotal+=d;
+  }
 
-function registrarPonto(
-    lat,
-    lon
-){
+  ultimoPonto={lat,lon};
+  pontosTrilha.push({
+    lat,lon,
+    hora:new Date().toISOString()
+  });
 
-    if(ultimoPonto){
-
-        const distancia =
-            distanciaMetros(
-                ultimoPonto[0],
-                ultimoPonto[1],
-                lat,
-                lon
-            );
-
-
-        // Ignora movimentos menores que 5 metros
-        if(distancia < 5){
-
-            return;
-        }
-
-
-        distanciaTotal +=
-            distancia;
-    }
-
-
-    ultimoPonto =
-        [lat,lon];
-
-
-    pontosTrilha.push({
-
-        lat:lat,
-        lon:lon,
-
-        hora:
-            new Date()
-            .toISOString()
-
-    });
-
-
-    linhaTrilha.setLatLngs(
-
-        pontosTrilha.map(
-            p => [p.lat,p.lon]
-        )
-
-    );
-
-
-    atualizarMetricas();
-
-    salvarTrilha();
+  linhaTrilha.setLatLngs(pontosTrilha.map(p=>[p.lat,p.lon]));
+  atualizarMetricas();
+  salvarAtiva();
 }
 
+function marcarPonto(){
+  if(!marcador){
+    alert("Aguarde o GPS obter sua posição.");
+    return;
+  }
+  const p=marcador.getLatLng();
+  const nome=prompt("Nome deste ponto (opcional):","Ponto "+(pontosTrilha.length+1));
+  if(nome===null)return;
 
-// =====================================================
-// INICIAR TRILHA
-// =====================================================
+  const pontosMarcados=obterMarcados();
+  pontosMarcados.push({
+    lat:p.lat,lon:p.lng,
+    nome:nome.trim()||"Ponto",
+    hora:new Date().toISOString()
+  });
+  localStorage.setItem("minha_pontos_gps_v2",JSON.stringify(pontosMarcados));
 
-function iniciarGravacao(){
-
-    if(retornando){
-
-        pararRetorno();
-    }
-
-    if(!navigator.geolocation){
-
-        alert(
-            "GPS não disponível."
-        );
-
-        return;
-    }
-
-
-    if(watchId === null){
-
-        testarGPS();
-    }
-
-
-    gravando = true;
-
-    // Se o GPS já entregou uma posição, começa a trilha imediatamente.
-    if(marcador){
-        const p = marcador.getLatLng();
-        if(p && pontosTrilha.length === 0){
-            registrarPonto(p.lat, p.lng);
-        }
-    }
-
-    document.getElementById("status")
-        .textContent =
-        "🔴 GRAVANDO TRILHA";
-
-    document.getElementById("mensagem")
-        .textContent =
-        "Caminhe normalmente. O caminho será desenhado no mapa.";
+  L.circleMarker([p.lat,p.lng],{
+    radius:7,color:"#7c3aed",fillColor:"#a855f7",fillOpacity:1,weight:3
+  }).addTo(mapa).bindPopup("📍 "+(nome.trim()||"Ponto"));
 }
 
-
-// =====================================================
-// PARAR TRILHA
-// =====================================================
+function obterMarcados(){
+  try{return JSON.parse(localStorage.getItem("minha_pontos_gps_v2")||"[]")}catch(e){return []}
+}
 
 function pararGravacao(){
-
-    gravando = false;
-
-
-    document.getElementById("status")
-        .textContent =
-        watchId !== null
-        ? "🟢 GPS FUNCIONANDO"
-        : "⏹ GPS PARADO";
-
-
-    document.getElementById("mensagem")
-        .textContent =
-        "Trilha parada e salva neste celular.";
+  if(!gravando)return;
+  gravando=false;
+  salvarTrilhaAtual();
+  localStorage.removeItem(CHAVE_ATIVA);
+  atualizarTelaMapa();
+  atualizarPrincipal();
+  renderizarLista();
 }
 
-
-
-// =====================================================
-// RETORNO PELO CAMINHO GRAVADO
-// =====================================================
-
-function iniciarRetorno(){
-
-    if(gravando){
-
-        alert(
-            "Pare a gravação da trilha antes de iniciar o retorno."
-        );
-
-        return;
-    }
-
-    if(pontosTrilha.length < 2){
-
-        alert(
-            "Ainda não existe uma trilha suficiente para retornar."
-        );
-
-        return;
-    }
-
-    retornando = true;
-
-    // Desenha a trilha de retorno em azul.
-    const caminhoVolta =
-        [...pontosTrilha]
-        .reverse()
-        .map(
-            p => [p.lat,p.lon]
-        );
-
-    linhaRetorno.setLatLngs(
-        caminhoVolta
-    );
-
-    // Marca o ponto inicial da trilha.
-    const inicio = pontosTrilha[0];
-
-    if(marcadorInicio){
-
-        marcadorInicio.setLatLng(
-            [inicio.lat,inicio.lon]
-        );
-
-    }else{
-
-        marcadorInicio =
-            L.circleMarker(
-                [inicio.lat,inicio.lon],
-                {
-                    radius:8,
-                    color:"#16a34a",
-                    fillColor:"#22c55e",
-                    fillOpacity:1,
-                    weight:3
-                }
-            ).addTo(mapa);
-
-        marcadorInicio.bindPopup(
-            "🏁 Ponto inicial"
-        );
-    }
-
-    document.getElementById("status")
-        .textContent =
-        "🔵 RETORNO ATIVO";
-
-    document.getElementById("mensagem")
-        .textContent =
-        "Siga a linha azul até o ponto inicial.";
-
-    atualizarRetorno(
-        null,
-        null
-    );
+function salvarAtiva(){
+  if(!trilhaAtualId)return;
+  localStorage.setItem(CHAVE_ATIVA,JSON.stringify({
+    id:trilhaAtualId,nome:nomeTrilhaAtual,pontos:pontosTrilha,
+    distancia:distanciaTotal,dataInicio:new Date().toISOString()
+  }));
 }
 
-
-function atualizarRetorno(
-    lat,
-    lon
-){
-
-    if(!retornando){
-
-        return;
-    }
-
-    // Quando chamado sem posição, apenas prepara a mensagem.
-    if(lat === null || lon === null){
-
-        document.getElementById("mensagem")
-            .textContent =
-            "Siga a linha azul até o ponto inicial.";
-
-        return;
-    }
-
-    if(!pontosTrilha.length){
-
-        return;
-    }
-
-    // Encontra o ponto gravado mais próximo da posição atual.
-    let indiceMaisProximo = 0;
-    let menorDistancia = Infinity;
-
-    for(
-        let i = 0;
-        i < pontosTrilha.length;
-        i++
-    ){
-
-        const d =
-            distanciaMetros(
-                lat,
-                lon,
-                pontosTrilha[i].lat,
-                pontosTrilha[i].lon
-            );
-
-        if(d < menorDistancia){
-
-            menorDistancia = d;
-            indiceMaisProximo = i;
-        }
-    }
-
-    // Soma a distância restante até o primeiro ponto.
-    let restante = menorDistancia;
-
-    for(
-        let i = indiceMaisProximo;
-        i > 0;
-        i--
-    ){
-
-        restante +=
-            distanciaMetros(
-                pontosTrilha[i].lat,
-                pontosTrilha[i].lon,
-                pontosTrilha[i-1].lat,
-                pontosTrilha[i-1].lon
-            );
-    }
-
-    let textoDistancia;
-
-    if(restante < 1000){
-
-        textoDistancia =
-            Math.round(restante) + " m";
-
-    }else{
-
-        textoDistancia =
-            (restante / 1000).toFixed(2) + " km";
-    }
-
-    if(menorDistancia <= 12){
-
-        document.getElementById("mensagem")
-            .textContent =
-            "🏁 Você está no caminho. Faltam " +
-            textoDistancia +
-            " até o ponto inicial.";
-
-    }else{
-
-        document.getElementById("mensagem")
-            .textContent =
-            "🔵 Retorno ativo — faltam " +
-            textoDistancia +
-            ". Siga a linha azul.";
-    }
-
-    // Chegou ao ponto inicial.
-    const distanciaInicio =
-        distanciaMetros(
-            lat,
-            lon,
-            pontosTrilha[0].lat,
-            pontosTrilha[0].lon
-        );
-
-    if(distanciaInicio <= 10){
-
-        document.getElementById("status")
-            .textContent =
-            "🏁 CHEGOU AO INÍCIO";
-
-        document.getElementById("mensagem")
-            .textContent =
-            "Você chegou ao ponto inicial da trilha.";
-
-        retornando = false;
-    }
+function salvarTrilhaAtual(){
+  if(!trilhaAtualId || !nomeTrilhaAtual)return;
+  const lista=obterTrilhas();
+  const obj={
+    id:trilhaAtualId,nome:nomeTrilhaAtual,pontos:pontosTrilha,
+    distancia:distanciaTotal,
+    data:new Date().toISOString()
+  };
+  const i=lista.findIndex(t=>t.id===trilhaAtualId);
+  if(i>=0)lista[i]=obj;else lista.unshift(obj);
+  salvarLista(lista);
 }
 
-
-function pararRetorno(){
-
-    retornando = false;
-
-    if(linhaRetorno){
-
-        linhaRetorno.setLatLngs([]);
-    }
-
-    document.getElementById("status")
-        .textContent =
-        watchId !== null
-        ? "🟢 GPS FUNCIONANDO"
-        : "⏹ GPS PARADO";
-
-    document.getElementById("mensagem")
-        .textContent =
-        "Retorno parado. A trilha continua salva neste celular.";
+function carregarAtiva(){
+  try{
+    const obj=JSON.parse(localStorage.getItem(CHAVE_ATIVA)||"null");
+    if(!obj)return;
+    trilhaAtualId=obj.id;
+    nomeTrilhaAtual=obj.nome;
+    pontosTrilha=obj.pontos||[];
+    distanciaTotal=obj.distancia||0;
+    ultimoPonto=pontosTrilha.length ? pontosTrilha[pontosTrilha.length-1] : null;
+    gravando=true;
+    linhaTrilha.setLatLngs(pontosTrilha.map(p=>[p.lat,p.lon]));
+    atualizarMetricas();
+  }catch(e){}
 }
 
-// =====================================================
-// MÉTRICAS
-// =====================================================
+function abrirMapa(){
+  modoVisualizacao="mapa";
+  el("telaPrincipal").classList.add("hidden");
+  el("telaTrilhas").classList.add("hidden");
+  el("telaMapa").classList.remove("hidden");
+  el("nomeMapa").textContent=nomeTrilhaAtual||"Trilhas";
+  atualizarTelaMapa();
+  setTimeout(()=>mapa.invalidateSize(),80);
+  if(marcador)mapa.setView(marcador.getLatLng(),17);
+  else if(pontosTrilha.length)mapa.setView([pontosTrilha[pontosTrilha.length-1].lat,pontosTrilha[pontosTrilha.length-1].lon],17);
+}
+
+function abrirListaTrilhas(){
+  // Durante a gravação, o botão TRILHAS abre diretamente o mapa grande,
+  // para acompanhar o caminho sendo desenhado em tempo real.
+  if(gravando){
+    abrirMapa();
+    return;
+  }
+
+  modoVisualizacao="lista";
+  el("telaPrincipal").classList.add("hidden");
+  el("telaMapa").classList.add("hidden");
+  el("telaTrilhas").classList.remove("hidden");
+  renderizarLista();
+}
+
+function renderizarLista(){
+  const lista=el("listaTrilhas");
+  const trilhas=obterTrilhas();
+
+  if(gravando){
+    const ativo=document.createElement("div");
+    ativo.className="itemTrilha";
+    ativo.innerHTML=`
+      <div class="itemTitulo">■ ${esc(nomeTrilhaAtual)}</div>
+      <div class="itemInfo">GRAVANDO AGORA · ${formatarDistancia(distanciaTotal)} · ${pontosTrilha.length} pontos</div>
+      <div class="itemAcoes"><button class="btnMini continuar" onclick="abrirMapa()">ABRIR GRAVAÇÃO</button></div>`;
+    lista.innerHTML="";
+    lista.appendChild(ativo);
+  }else{
+    lista.innerHTML="";
+  }
+
+  if(!trilhas.length && !gravando){
+    lista.innerHTML='<div class="vazio">Nenhuma trilha salva ainda.<br><br>Use <b>CRIAR TRILHA</b> para começar.</div>';
+    return;
+  }
+
+  trilhas.forEach(t=>{
+    const div=document.createElement("div");
+    div.className="itemTrilha";
+    div.innerHTML=`
+      <div class="itemTitulo">🛤️ ${esc(t.nome)}</div>
+      <div class="itemInfo">${formatarDistancia(t.distancia||0)} · ${(t.pontos||[]).length} pontos · ${new Date(t.data).toLocaleString("pt-BR")}</div>
+      <div class="itemAcoes">
+        <button class="btnMini" onclick="abrirTrilhaSalva('${t.id}')">VER TRILHA</button>
+        <button class="btnMini" style="background:#b91c1c" onclick="apagarTrilha('${t.id}')">APAGAR</button>
+      </div>`;
+    lista.appendChild(div);
+  });
+}
+
+function abrirTrilhaSalva(id){
+  const t=obterTrilhas().find(x=>x.id===id);
+  if(!t)return;
+  if(gravando && id===trilhaAtualId){
+    abrirMapa();return;
+  }
+  nomeTrilhaAtual=t.nome;
+  pontosTrilha=t.pontos||[];
+  distanciaTotal=t.distancia||0;
+  ultimoPonto=pontosTrilha.length?pontosTrilha[pontosTrilha.length-1]:null;
+  gravando=false;
+  linhaTrilha.setLatLngs(pontosTrilha.map(p=>[p.lat,p.lon]));
+  atualizarMetricas();
+  abrirMapa();
+  el("statusMapa").textContent="🗺️ TRILHA SALVA";
+  el("mensagemMapa").textContent="Visualizando uma trilha já gravada.";
+}
+
+function apagarTrilha(id){
+  if(!confirm("Apagar esta trilha?"))return;
+  salvarLista(obterTrilhas().filter(t=>t.id!==id));
+  renderizarLista();
+}
+
+function limparAtual(){
+  if(gravando){
+    alert("Pare a gravação antes de limpar.");
+    return;
+  }
+  if(!confirm("Limpar a trilha da tela?"))return;
+  pontosTrilha=[];
+  distanciaTotal=0;
+  ultimoPonto=null;
+  nomeTrilhaAtual="";
+  trilhaAtualId=null;
+  linhaTrilha.setLatLngs([]);
+  atualizarMetricas();
+  atualizarPrincipal();
+}
 
 function atualizarMetricas(){
-
-    let texto;
-
-    if(distanciaTotal < 1000){
-
-        texto =
-            Math.round(
-                distanciaTotal
-            ) + " m";
-
-    }else{
-
-        texto =
-            (
-                distanciaTotal / 1000
-            ).toFixed(2) + " km";
-    }
-
-
-    document.getElementById("distancia")
-        .textContent =
-        texto;
-
-
-    document.getElementById("pontos")
-        .textContent =
-        pontosTrilha.length;
+  el("distancia").textContent=formatarDistancia(distanciaTotal);
+  el("pontos").textContent=pontosTrilha.length;
 }
 
-
-// =====================================================
-// SALVAR
-// =====================================================
-
-function salvarTrilha(){
-
-    const dados = {
-
-        pontos:pontosTrilha,
-
-        distancia:distanciaTotal,
-
-        data:
-            new Date()
-            .toISOString()
-
-    };
-
-
-    localStorage.setItem(
-
-        CHAVE_TRILHA,
-
-        JSON.stringify(dados)
-
-    );
+function atualizarTelaMapa(){
+  el("nomeMapa").textContent=nomeTrilhaAtual||"Trilhas";
+  if(gravando){
+    el("statusMapa").textContent="■ GRAVANDO TRILHA";
+    el("mensagemMapa").textContent="Caminhe normalmente. A trilha está sendo salva.";
+    el("btnGravarMapa").textContent="■ GRAVANDO";
+    el("btnGravarMapa").className="btnMapa btnGravando";
+  }else{
+    el("statusMapa").textContent="⚪ NÃO GRAVANDO";
+    el("mensagemMapa").textContent="Trilha parada e salva neste celular.";
+    el("btnGravarMapa").textContent="🔴 INICIAR";
+    el("btnGravarMapa").className="btnMapa btnGravar";
+  }
 }
 
-
-// =====================================================
-// CARREGAR TRILHA
-// =====================================================
-
-function carregarTrilha(){
-
-    const dados =
-        localStorage.getItem(
-            CHAVE_TRILHA
-        );
-
-
-    if(!dados){
-
-        return;
-    }
-
-
-    try{
-
-        const obj =
-            JSON.parse(dados);
-
-
-        pontosTrilha =
-            obj.pontos || [];
-
-
-        distanciaTotal =
-            obj.distancia || 0;
-
-
-        linhaTrilha.setLatLngs(
-
-            pontosTrilha.map(
-                p => [p.lat,p.lon]
-            )
-
-        );
-
-
-        atualizarMetricas();
-
-
-        if(pontosTrilha.length){
-
-            const inicio =
-                pontosTrilha[0];
-
-            marcadorInicio =
-                L.circleMarker(
-                    [inicio.lat,inicio.lon],
-                    {
-                        radius:8,
-                        color:"#16a34a",
-                        fillColor:"#22c55e",
-                        fillOpacity:1,
-                        weight:3
-                    }
-                ).addTo(mapa);
-
-            marcadorInicio.bindPopup(
-                "🏁 Ponto inicial"
-            );
-
-            const ultimo =
-                pontosTrilha[
-                    pontosTrilha.length-1
-                ];
-
-
-            ultimoPonto =
-                [
-                    ultimo.lat,
-                    ultimo.lon
-                ];
-        }
-
-    }catch(e){
-
-        console.log(
-            "Erro ao carregar trilha:",
-            e
-        );
-    }
+function atualizarPrincipal(){
+  if(gravando){
+    el("estadoPrincipalTexto").textContent="■ GRAVANDO TRILHA";
+    el("estadoPrincipalTexto").style.color="#ef4444";
+    el("estadoPrincipalSub").textContent=nomeTrilhaAtual+" · "+formatarDistancia(distanciaTotal);
+    el("btnCriarPrincipal").textContent="■ GRAVANDO — ABRIR";
+  }else{
+    el("estadoPrincipalTexto").textContent="⚪ PRONTO";
+    el("estadoPrincipalTexto").style.color="";
+    el("estadoPrincipalSub").textContent="Nenhuma trilha sendo gravada.";
+    el("btnCriarPrincipal").textContent="🔴 CRIAR TRILHA";
+  }
 }
 
-
-// =====================================================
-// LIMPAR
-// =====================================================
-
-function limparTrilha(){
-
-    if(gravando || retornando){
-
-        alert(
-            "Pare a gravação ou o retorno antes de limpar."
-        );
-
-        return;
-    }
-
-    if(!confirm(
-        "Apagar a trilha salva neste celular?"
-    )){
-
-        return;
-    }
-
-    pontosTrilha = [];
-
-    distanciaTotal = 0;
-
-    ultimoPonto = null;
-
-    linhaTrilha.setLatLngs([]);
-
-    if(linhaRetorno){
-
-        linhaRetorno.setLatLngs([]);
-    }
-
-    if(marcadorInicio){
-
-        mapa.removeLayer(
-            marcadorInicio
-        );
-
-        marcadorInicio = null;
-    }
-
-    localStorage.removeItem(
-        CHAVE_TRILHA
-    );
-
-    atualizarMetricas();
-
-    document.getElementById("mensagem")
-        .textContent =
-        "Trilha apagada.";
+function voltarPrincipal(){
+  el("telaMapa").classList.add("hidden");
+  el("telaTrilhas").classList.add("hidden");
+  el("telaPrincipal").classList.remove("hidden");
+  modoVisualizacao="principal";
+  atualizarPrincipal();
 }
-
-
-// =====================================================
-// ERRO GPS
-// =====================================================
 
 function erroGPS(err){
-
-    let texto =
-        "Erro ao obter GPS.";
-
-
-    if(err.code === 1){
-
-        texto =
-            "Permissão de localização negada.";
-
-    }else if(err.code === 2){
-
-        texto =
-            "Posição indisponível.";
-
-    }else if(err.code === 3){
-
-        texto =
-            "Tempo esgotado para obter GPS.";
-    }
-
-
-    document.getElementById("status")
-        .textContent =
-        "🔴 ERRO GPS";
-
-
-    document.getElementById("mensagem")
-        .textContent =
-        texto;
+  el("statusMapa").textContent="🔴 ERRO GPS";
+  el("mensagemMapa").textContent=
+    err.code===1?"Permissão de localização negada.":
+    err.code===2?"Posição indisponível.":
+    "Tempo esgotado para obter GPS.";
 }
 
+function esc(s){
+  return String(s).replace(/[&<>"']/g,m=>({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
+  }[m]));
+}
 
-// inicia
-iniciarMapa();
-
+/* Recupera gravação que estava em andamento antes de fechar/trocar a tela. */
+function iniciar(){
+  iniciarMapa();
+  carregarAtiva();
+  atualizarPrincipal();
+  renderizarLista();
+}
+iniciar();
 </script>
-
 </body>
 </html>
