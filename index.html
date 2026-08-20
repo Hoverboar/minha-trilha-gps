@@ -88,7 +88,7 @@ body{display:flex;flex-direction:column}
 <section id="telaGravar" class="tela">
   <div class="telaTopo">
     <button class="voltar" onclick="voltarInicio()">‹</button>
-    <div class="titulo">Gravar Trilha</div>
+    <div class="titulo" id="tituloGravar">Gravar Trilha</div>
   </div>
 
   <div style="position:relative;flex:1;min-height:0">
@@ -150,6 +150,7 @@ let pontos=[];
 let pontosManuais=[];
 let gravando=false;
 let watchId=null;
+let gravacaoInterval=null;
 let ultimaPosicao=null;
 let distanciaTotal=0;
 
@@ -183,13 +184,13 @@ function iniciarGPS(){
     return;
   }
 
-  if(watchId!==null) return;
-
-  watchId=navigator.geolocation.watchPosition(
-    receberPosicao,
-    ()=>atualizarGPS(false,"Permissão/localização indisponível."),
-    {enableHighAccuracy:true,maximumAge:1000,timeout:15000}
-  );
+  if(watchId===null){
+    watchId=navigator.geolocation.watchPosition(
+      receberPosicao,
+      ()=>atualizarGPS(false,"Permissão/localização indisponível."),
+      {enableHighAccuracy:true,maximumAge:1000,timeout:15000}
+    );
+  }
 }
 
 function receberPosicao(pos){
@@ -216,27 +217,7 @@ function receberPosicao(pos){
 
   if(!gravando) return;
 
-  const ponto=[lat,lon];
-
-  if(pontos.length){
-    const anterior=pontos[pontos.length-1];
-    const d=mapa.distance(anterior,ponto);
-
-    if(d<2) return;
-    distanciaTotal+=d;
-  }
-
-  pontos.push(ponto);
-  linhaTrilha.setLatLngs(pontos);
-
-  document.getElementById("pontos").textContent=pontos.length;
-  document.getElementById("distancia").textContent=
-    distanciaTotal<1000
-      ? Math.round(distanciaTotal)+" m"
-      : (distanciaTotal/1000).toFixed(2)+" km";
-
-  let kmh=(typeof vel==="number" && vel>=0)?vel*3.6:0;
-  document.getElementById("velocidade").textContent=kmh.toFixed(1)+" km/h";
+  adicionarPontoTrilha(lat,lon,vel);
 }
 
 function atualizarGPS(ok,texto){
@@ -254,6 +235,42 @@ function atualizarGPS(ok,texto){
   d.textContent=texto;
 }
 
+function adicionarPontoTrilha(lat,lon,vel){
+  if(!mapa || !gravando) return;
+
+  const ponto=[lat,lon];
+
+  if(pontos.length){
+    const anterior=pontos[pontos.length-1];
+    const d=mapa.distance(anterior,ponto);
+    if(d<1.5) return;
+    distanciaTotal+=d;
+  }
+
+  pontos.push(ponto);
+  linhaTrilha.setLatLngs(pontos);
+  if(marcadorAtual) marcadorAtual.setLatLng([lat,lon]);
+
+  document.getElementById("pontos").textContent=pontos.length;
+  document.getElementById("distancia").textContent=
+    distanciaTotal<1000
+      ? Math.round(distanciaTotal)+" m"
+      : (distanciaTotal/1000).toFixed(2)+" km";
+
+  let kmh=(typeof vel==="number" && vel>=0)?vel*3.6:0;
+  document.getElementById("velocidade").textContent=kmh.toFixed(1)+" km/h";
+}
+
+function solicitarPosicaoDuranteGravacao(){
+  if(!gravando || !navigator.geolocation) return;
+
+  navigator.geolocation.getCurrentPosition(
+    pos=>receberPosicao(pos),
+    ()=>{},
+    {enableHighAccuracy:true,maximumAge:0,timeout:10000}
+  );
+}
+
 function iniciarTrilha(){
   if(!ultimaPosicao){
     alert("Aguarde o GPS obter sua posição.");
@@ -263,6 +280,7 @@ function iniciarTrilha(){
   if(gravando) return;
 
   gravando=true;
+  document.getElementById("tituloGravar").textContent="🔴 GRAVANDO TRILHA";
   pontos=[];
   distanciaTotal=0;
   linhaTrilha.setLatLngs([]);
@@ -271,10 +289,19 @@ function iniciarTrilha(){
   linhaTrilha.setLatLngs(pontos);
 
   document.getElementById("pontos").textContent="1";
+  document.getElementById("distancia").textContent="0 m";
+  document.getElementById("velocidade").textContent="0.0 km/h";
+
+  solicitarPosicaoDuranteGravacao();
+  clearInterval(gravacaoInterval);
+  gravacaoInterval=setInterval(solicitarPosicaoDuranteGravacao,2000);
 }
 
 function pararTrilha(){
   gravando=false;
+  document.getElementById("tituloGravar").textContent="Gravar Trilha";
+  clearInterval(gravacaoInterval);
+  gravacaoInterval=null;
 
   if(pontos.length<2){
     alert("Poucos pontos para formar uma trilha.");
@@ -315,6 +342,10 @@ function marcarPonto(){
 }
 
 function limparTrilha(){
+  gravando=false;
+  document.getElementById("tituloGravar").textContent="Gravar Trilha";
+  clearInterval(gravacaoInterval);
+  gravacaoInterval=null;
   pontos=[];
   distanciaTotal=0;
   gravando=false;
