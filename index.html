@@ -213,6 +213,7 @@ let distanciaTotal=0;
 let ultimaPosicaoVelocidade=null;
 let ultimaHoraVelocidade=null;
 let linhaTrilha=null;
+let pontosVisiveis=null;
 let marcadorInicio=null;
 let trilhaAtualId=null;
 let nomeTrilhaAtual="";
@@ -248,7 +249,8 @@ function iniciarMapa(){
     maxZoom:19,attribution:"&copy; OpenStreetMap"
   }).addTo(mapa);
 
-  linhaTrilha=L.polyline([],{color:"#ff3b00",weight:6,opacity:.98}).addTo(mapa);
+  linhaTrilha=L.polyline([],{color:"#ff3b00",weight:5,opacity:.98}).addTo(mapa);
+  pontosVisiveis=L.layerGroup().addTo(mapa);
   iniciarGPS();
 }
 
@@ -319,6 +321,7 @@ function iniciarNovaTrilha(){
   ultimaPosicaoVelocidade=null;
   ultimaHoraVelocidade=null;
   linhaTrilha.setLatLngs([]);
+  limparPontosVisiveis();
   if(marcadorInicio){mapa.removeLayer(marcadorInicio);marcadorInicio=null}
 
   gravando=true;
@@ -350,6 +353,30 @@ function acaoBotaoGravacao(){
   }
 }
 
+
+function limparPontosVisiveis(){
+  if(pontosVisiveis){
+    pontosVisiveis.clearLayers();
+  }
+}
+
+function desenharPontosDaTrilha(pontos){
+  limparPontosVisiveis();
+  if(!pontosVisiveis)return;
+
+  (pontos||[]).forEach((p)=>{
+    if(!Number.isFinite(Number(p.lat))||!Number.isFinite(Number(p.lon)))return;
+
+    L.circleMarker([Number(p.lat),Number(p.lon)],{
+      radius:4.5,
+      color:"#d90000",
+      fillColor:"#ff1717",
+      fillOpacity:1,
+      weight:2
+    }).addTo(pontosVisiveis);
+  });
+}
+
 function registrarPonto(lat,lon){
   if(!gravando)return;
 
@@ -366,6 +393,18 @@ function registrarPonto(lat,lon){
   });
 
   linhaTrilha.setLatLngs(pontosTrilha.map(p=>[p.lat,p.lon]));
+
+  // Mostra os pontos GPS sobre a linha, como no aplicativo de referência.
+  if(pontosVisiveis){
+    L.circleMarker([lat,lon],{
+      radius:4.5,
+      color:"#d90000",
+      fillColor:"#ff1717",
+      fillOpacity:1,
+      weight:2
+    }).addTo(pontosVisiveis);
+  }
+
   atualizarMetricas();
   salvarAtiva();
 }
@@ -438,6 +477,7 @@ function carregarAtiva(){
     ultimoPonto=pontosTrilha.length ? pontosTrilha[pontosTrilha.length-1] : null;
     gravando=true;
     linhaTrilha.setLatLngs(pontosTrilha.map(p=>[p.lat,p.lon]));
+    desenharPontosDaTrilha(pontosTrilha);
     atualizarMetricas();
   }catch(e){}
 }
@@ -569,6 +609,7 @@ function abrirTrilhaSalva(id){
   // Desenha explicitamente a trilha selecionada.
   linhaTrilha.setLatLngs(coords);
   linhaTrilha.bringToFront();
+  desenharPontosDaTrilha(coords.map(p=>({lat:p[0],lon:p[1]})));
 
   // Ajusta o zoom para mostrar TODA a trilha.
   setTimeout(()=>{
@@ -625,6 +666,8 @@ function limparAtual(){
   nomeTrilhaAtual="";
   trilhaAtualId=null;
   linhaTrilha.setLatLngs([]);
+  limparPontosVisiveis();
+  if(marcadorInicio){mapa.removeLayer(marcadorInicio);marcadorInicio=null}
   atualizarMetricas();
   atualizarPrincipal();
 }
