@@ -118,7 +118,7 @@ button{font-family:inherit;border:0;cursor:pointer;color:#fff}
  .principalConteudo{padding:18px;gap:12px}
  .logoCard .icone{font-size:42px}
  .logoCard h1{font-size:25px}
- .btnPrincipal{min-height:61px;font-size:18px}
+ .btnPrincipal{min-height:57px;font-size:18px}
  .infoMapa{bottom:5px}
  .metrica{padding:5px 2px}.metrica b{font-size:17px}
  .btnMapa{min-height:39px;font-size:12px}
@@ -151,7 +151,12 @@ button{font-family:inherit;border:0;cursor:pointer;color:#fff}
       🗺️ TRILHAS
     </button>
 
+    <button class="btnPrincipal btnImportar" onclick="abrirImportadorGPX()">
+      📥 IMPORTAR GPX
+    </button>
+
     <div class="rodape">As trilhas ficam salvas localmente neste celular.</div>
+    <input id="inputGPX" type="file" accept=".gpx,application/gpx+xml,text/xml,application/xml" class="hidden" onchange="importarGPX(event)">
   </div>
 </section>
 
@@ -160,6 +165,7 @@ button{font-family:inherit;border:0;cursor:pointer;color:#fff}
   <div class="barra">
     <button class="btnVoltar" onclick="voltarPrincipal()">‹</button>
     <div class="barraTitulo">Trilhas</div>
+    <button class="btnMini" style="margin-left:auto;flex:0 0 auto;padding:9px 12px;background:#4b5563" onclick="abrirImportadorGPX()">📥 GPX</button>
   </div>
   <div id="listaTrilhas" class="lista"></div>
 </section>
@@ -489,8 +495,8 @@ function renderizarLista(){
     const div=document.createElement("div");
     div.className="itemTrilha";
     div.innerHTML=`
-      <div class="itemTitulo">🛤️ ${esc(t.nome)}</div>
-      <div class="itemInfo">${formatarDistancia(t.distancia||0)} · ${(t.pontos||[]).length} pontos · ${new Date(t.data).toLocaleString("pt-BR")}</div>
+      <div class="itemTitulo">${t.origem==="GPX" ? "📥" : "🛤️"} ${esc(t.nome)}</div>
+      <div class="itemInfo">${t.origem==="GPX" ? "GPX IMPORTADO · " : ""}${formatarDistancia(t.distancia||0)} · ${(t.pontos||[]).length} pontos · ${new Date(t.data).toLocaleString("pt-BR")}</div>
       <div class="itemAcoes">
         <button class="btnMini" onclick="abrirTrilhaSalva('${t.id}')">VER TRILHA</button>
         <button class="btnMini" style="background:#b91c1c" onclick="apagarTrilha('${t.id}')">APAGAR</button>
@@ -587,6 +593,89 @@ function erroGPS(err){
     err.code===1?"Permissão de localização negada.":
     err.code===2?"Posição indisponível.":
     "Tempo esgotado para obter GPS.";
+}
+
+
+function abrirImportadorGPX(){
+  const input=el("inputGPX");
+  if(input){
+    input.value="";
+    input.click();
+  }
+}
+
+function importarGPX(event){
+  const arquivo=event.target.files && event.target.files[0];
+  if(!arquivo)return;
+
+  const leitor=new FileReader();
+  leitor.onload=function(){
+    try{
+      const texto=String(leitor.result||"");
+      const doc=new DOMParser().parseFromString(texto,"application/xml");
+
+      if(doc.querySelector("parsererror")){
+        throw new Error("GPX inválido.");
+      }
+
+      const trackPoints=[...doc.querySelectorAll("trkpt")];
+      const routePoints=[...doc.querySelectorAll("rtept")];
+      const wayPoints=[...doc.querySelectorAll("wpt")];
+
+      const pontos=trackPoints.length ? trackPoints : (routePoints.length ? routePoints : wayPoints);
+
+      if(!pontos.length){
+        alert("Não encontrei pontos de GPS neste arquivo GPX.");
+        return;
+      }
+
+      const nomeNoArquivo=arquivo.name.replace(/\.gpx$/i,"").trim();
+      const nomeGPX=nomeNoArquivo || "Trilha importada";
+
+      const coords=pontos.map(pt=>({
+        lat:parseFloat(pt.getAttribute("lat")),
+        lon:parseFloat(pt.getAttribute("lon")),
+        hora:(pt.querySelector("time")||{}).textContent || null
+      })).filter(p=>Number.isFinite(p.lat)&&Number.isFinite(p.lon));
+
+      if(coords.length<2){
+        alert("O GPX precisa ter pelo menos 2 posições válidas.");
+        return;
+      }
+
+      let dist=0;
+      for(let i=1;i<coords.length;i++){
+        dist+=distanciaMetros(
+          coords[i-1].lat,coords[i-1].lon,
+          coords[i].lat,coords[i].lon
+        );
+      }
+
+      const lista=obterTrilhas();
+      const id="gpx_"+Date.now();
+
+      lista.unshift({
+        id:id,
+        nome:nomeGPX,
+        pontos:coords,
+        distancia:dist,
+        data:new Date().toISOString(),
+        origem:"GPX"
+      });
+
+      salvarLista(lista);
+
+      alert("GPX importado com sucesso:\\n"+nomeGPX+"\\n"+formatarDistancia(dist));
+
+      renderizarLista();
+      abrirListaTrilhas();
+    }catch(e){
+      console.error(e);
+      alert("Não foi possível importar este GPX.");
+    }
+  };
+  leitor.onerror=function(){alert("Erro ao ler o arquivo GPX.")};
+  leitor.readAsText(arquivo);
 }
 
 function esc(s){
