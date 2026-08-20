@@ -123,6 +123,40 @@ button{font-family:inherit;border:0;cursor:pointer;color:#fff}
  .metrica{padding:5px 2px}.metrica b{font-size:17px}
  .btnMapa{min-height:39px;font-size:12px}
 }
+
+/* Controle de centralização: aparece por 5 segundos quando o mapa é tocado */
+#controleCentro{
+  position:absolute;
+  left:50%;
+  bottom:86px;
+  transform:translateX(-50%);
+  z-index:1200;
+  display:none;
+  align-items:center;
+  gap:14px;
+  padding:10px 16px;
+  background:rgba(255,255,255,.94);
+  color:#111827;
+  border:1px solid #9ca3af;
+  border-radius:28px;
+  box-shadow:0 3px 12px rgba(0,0,0,.35);
+  font-size:16px;
+  white-space:nowrap;
+}
+#controleCentro.mostrar{display:flex}
+#controleCentro label{
+  display:flex;
+  align-items:center;
+  gap:5px;
+  cursor:pointer;
+}
+#controleCentro input{
+  width:19px;
+  height:19px;
+  margin:0;
+  accent-color:#111827;
+}
+
 </style>
 </head>
 <body>
@@ -174,6 +208,12 @@ button{font-family:inherit;border:0;cursor:pointer;color:#fff}
 <section id="telaMapa" class="hidden">
   <div id="map"></div>
 
+  <div id="controleCentro" onclick="event.stopPropagation()">
+    <span>Centro automa.</span>
+    <label><input type="radio" name="centroMapa" value="sim" onchange="setCentralizacao(true)"> sim</label>
+    <label><input type="radio" name="centroMapa" value="nao" checked onchange="setCentralizacao(false)"> não</label>
+  </div>
+
   <div class="mapaBarra">
     <button class="btnVoltar" onclick="voltarPrincipal()">‹</button>
     <div id="nomeMapa" class="nomeMapa">Trilha</div>
@@ -218,6 +258,8 @@ let marcadorInicio=null;
 let trilhaAtualId=null;
 let nomeTrilhaAtual="";
 let modoVisualizacao="principal";
+let centralizarMapa=false;
+let timerControleCentro=null;
 
 const CHAVE_TRILHAS="minha_trilhas_gps_v2";
 const CHAVE_ATIVA="minha_trilha_ativa_gps_v2";
@@ -243,11 +285,39 @@ function distanciaMetros(lat1,lon1,lat2,lon2){
   return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
 }
 
+
+function mostrarControleCentro(){
+  const c=el("controleCentro");
+  if(!c)return;
+
+  c.classList.add("mostrar");
+
+  if(timerControleCentro)clearTimeout(timerControleCentro);
+
+  timerControleCentro=setTimeout(()=>{
+    c.classList.remove("mostrar");
+  },5000);
+}
+
+function setCentralizacao(valor){
+  centralizarMapa=!!valor;
+  mostrarControleCentro();
+
+  // Se acabou de ativar, centraliza imediatamente na posição atual.
+  if(centralizarMapa && marcador){
+    const p=marcador.getLatLng();
+    mapa.setView(p,mapa.getZoom(),{animate:true});
+  }
+}
+
 function iniciarMapa(){
   mapa=L.map("map").setView([-21.4586,-51.9167],16);
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{
     maxZoom:19,attribution:"&copy; OpenStreetMap"
   }).addTo(mapa);
+
+  // O controle fica escondido e aparece por 5 segundos ao tocar no mapa.
+  mapa.on("click", mostrarControleCentro);
 
   linhaTrilha=L.polyline([],{color:"#ff3b00",weight:5,opacity:.98}).addTo(mapa);
   pontosVisiveis=L.layerGroup().addTo(mapa);
@@ -288,6 +358,11 @@ function atualizarGPS(pos){
   if(c.accuracy){
     if(circuloPrecisao) mapa.removeLayer(circuloPrecisao);
     circuloPrecisao=L.circle([lat,lon],{radius:c.accuracy,color:"#22c55e",weight:2,fillOpacity:.08}).addTo(mapa);
+  }
+
+  // Com "sim", o mapa acompanha a posição atual.
+  if(centralizarMapa && modoVisualizacao!=="trilha"){
+    mapa.setView([lat,lon],mapa.getZoom(),{animate:false});
   }
 
   if(gravarandoOuNao()){
