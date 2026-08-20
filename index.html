@@ -471,38 +471,64 @@ function abrirListaTrilhas(){
 
 function renderizarLista(){
   const lista=el("listaTrilhas");
-  const trilhas=obterTrilhas();
+  const todas=obterTrilhas();
 
+  const minhas=todas.filter(t=>t.origem!=="GPX");
+  const importadas=todas.filter(t=>t.origem==="GPX");
+
+  lista.innerHTML="";
+
+  // Trilhas que estão sendo gravadas ficam sempre no topo.
   if(gravando){
     const ativo=document.createElement("div");
     ativo.className="itemTrilha";
     ativo.innerHTML=`
       <div class="itemTitulo">■ ${esc(nomeTrilhaAtual)}</div>
       <div class="itemInfo">GRAVANDO AGORA · ${formatarDistancia(distanciaTotal)} · ${pontosTrilha.length} pontos</div>
-      <div class="itemAcoes"><button class="btnMini continuar" onclick="abrirMapa()">ABRIR GRAVAÇÃO</button></div>`;
-    lista.innerHTML="";
-    lista.appendChild(ativo);
-  }else{
-    lista.innerHTML="";
-  }
-
-  if(!trilhas.length && !gravando){
-    lista.innerHTML='<div class="vazio">Nenhuma trilha salva ainda.<br><br>Use <b>CRIAR TRILHA</b> para começar.</div>';
-    return;
-  }
-
-  trilhas.forEach(t=>{
-    const div=document.createElement("div");
-    div.className="itemTrilha";
-    div.innerHTML=`
-      <div class="itemTitulo">${t.origem==="GPX" ? "📥" : "🛤️"} ${esc(t.nome)}</div>
-      <div class="itemInfo">${t.origem==="GPX" ? "GPX IMPORTADO · " : ""}${formatarDistancia(t.distancia||0)} · ${(t.pontos||[]).length} pontos · ${new Date(t.data).toLocaleString("pt-BR")}</div>
       <div class="itemAcoes">
-        <button class="btnMini" onclick="abrirTrilhaSalva('${t.id}')">VER TRILHA</button>
-        <button class="btnMini" style="background:#b91c1c" onclick="apagarTrilha('${t.id}')">APAGAR</button>
+        <button class="btnMini continuar" onclick="abrirMapa()">ABRIR GRAVAÇÃO</button>
       </div>`;
-    lista.appendChild(div);
-  });
+    lista.appendChild(ativo);
+  }
+
+  if(minhas.length){
+    const titulo=document.createElement("div");
+    titulo.style.cssText="font-size:18px;font-weight:800;padding:12px 4px 8px";
+    titulo.textContent="🛤️ MINHAS TRILHAS";
+    lista.appendChild(titulo);
+
+    minhas.forEach(t=>adicionarItemTrilha(lista,t));
+  }
+
+  if(importadas.length){
+    const titulo=document.createElement("div");
+    titulo.style.cssText="font-size:18px;font-weight:800;padding:20px 4px 8px";
+    titulo.textContent="📥 GPX IMPORTADOS";
+    lista.appendChild(titulo);
+
+    importadas.forEach(t=>adicionarItemTrilha(lista,t));
+  }
+
+  if(!minhas.length && !importadas.length && !gravando){
+    lista.innerHTML='<div class="vazio">Nenhuma trilha salva ainda.<br><br>Use <b>CRIAR TRILHA</b> ou <b>IMPORTAR GPX</b>.</div>';
+  }
+}
+
+function adicionarItemTrilha(lista,t){
+  const div=document.createElement("div");
+  div.className="itemTrilha";
+
+  const origem=t.origem==="GPX" ? "📥 GPX IMPORTADO" : "🛤️ TRILHA GRAVADA";
+
+  div.innerHTML=`
+    <div class="itemTitulo">${t.origem==="GPX" ? "📥" : "🛤️"} ${esc(t.nome)}</div>
+    <div class="itemInfo">${origem} · ${formatarDistancia(t.distancia||0)} · ${(t.pontos||[]).length} pontos · ${new Date(t.data).toLocaleString("pt-BR")}</div>
+    <div class="itemAcoes">
+      <button class="btnMini" onclick="abrirTrilhaSalva('${t.id}')">VER TRILHA</button>
+      <button class="btnMini" style="background:#b91c1c" onclick="apagarTrilha('${t.id}')">APAGAR</button>
+    </div>`;
+
+  lista.appendChild(div);
 }
 
 function abrirTrilhaSalva(id){
