@@ -2,254 +2,485 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
 <title>Minha Trilha GPS</title>
 
+<link rel="stylesheet"
+ href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
 <style>
-*{
-    box-sizing:border-box;
-    -webkit-tap-highlight-color:transparent;
-}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;font-family:Arial,sans-serif;background:#0b1220;color:#fff}
+body{display:flex;flex-direction:column}
 
-html,body{
-    margin:0;
-    width:100%;
-    height:100%;
-    overflow:hidden;
-    font-family:Arial,sans-serif;
-    background:#0b1220;
-    color:white;
-}
+.topo{height:68px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:0 18px;background:#111a2b;border-bottom:1px solid #26344d}
+.logo{font-size:23px;font-weight:bold}
+.status{width:14px;height:14px;border-radius:50%;background:#22c55e;box-shadow:0 0 10px #22c55e}
 
-body{
-    display:flex;
-    flex-direction:column;
-}
+.principal{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:22px}
+.botao{width:min(90vw,430px);min-height:92px;border:0;border-radius:23px;color:white;font-size:24px;font-weight:bold;display:flex;align-items:center;justify-content:center;gap:14px;box-shadow:0 7px 16px #0006}
+.botao:active{transform:scale(.97)}
+.gravar{background:#f59e0b}
+.locais{background:#2563eb}
+.trilhas{background:#7c3aed}
+.importar{background:#16a34a}
+.icone{font-size:34px}
 
-/* Cabeçalho */
-.topo{
-    height:72px;
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    padding:0 20px;
-    background:#111a2b;
-    border-bottom:1px solid #26344d;
-}
+.rodape{text-align:center;padding:12px;color:#8f9bb0;font-size:13px;background:#111a2b}
 
-.logo{
-    font-size:24px;
-    font-weight:bold;
-}
+.tela{display:none;position:fixed;inset:0;background:#0b1220;z-index:20;flex-direction:column}
+.tela.ativa{display:flex}
+.telaTopo{height:62px;flex-shrink:0;display:flex;align-items:center;gap:12px;padding:0 14px;background:#111a2b}
+.voltar{background:none;border:0;color:#fff;font-size:34px}
+.titulo{font-size:22px;font-weight:bold}
 
-.status{
-    width:14px;
-    height:14px;
-    border-radius:50%;
-    background:#22c55e;
-    box-shadow:0 0 10px #22c55e;
-}
+#mapa{flex:1;min-height:0}
+.painel{background:#111a2bea;padding:10px;display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+.info{background:#182338;border-radius:14px;padding:8px;text-align:center}
+.info b{display:block;font-size:21px}
+.info span{font-size:11px;color:#aab4c5}
+.acoes{background:#111a2b;padding:8px;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.acao{border:0;border-radius:15px;min-height:53px;color:white;font-weight:bold;font-size:16px}
+.iniciar{background:#f59e0b}.parar{background:#4b5563}.marcar{background:#7c3aed}.limpar{background:#dc2626}
+.acao:active{transform:scale(.97)}
 
-/* Área principal */
-.principal{
-    flex:1;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    justify-content:center;
-    gap:22px;
-    padding:25px;
-}
+.gpsbox{position:absolute;z-index:500;top:75px;left:12px;background:#111a2beF;border-radius:16px;padding:10px 13px;box-shadow:0 5px 15px #0007;font-size:13px}
+.gpsok{color:#4ade80;font-weight:bold;font-size:17px}
+.gpserro{color:#f87171;font-weight:bold;font-size:17px}
 
-/* Botões */
-.botao{
-    width:min(90vw,430px);
-    min-height:105px;
-    border:0;
-    border-radius:24px;
-    color:white;
-    font-size:25px;
-    font-weight:bold;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    gap:15px;
-    box-shadow:0 8px 18px rgba(0,0,0,.30);
-    cursor:pointer;
-}
-
-.botao:active{
-    transform:scale(.97);
-}
-
-.gravar{
-    background:#f59e0b;
-}
-
-.locais{
-    background:#2563eb;
-}
-
-.trilhas{
-    background:#7c3aed;
-}
-
-.icone{
-    font-size:36px;
-}
-
-.rodape{
-    text-align:center;
-    padding:14px;
-    color:#8f9bb0;
-    font-size:14px;
-    background:#111a2b;
-}
-
-/* telas futuras */
-.tela{
-    display:none;
-    position:absolute;
-    inset:0;
-    background:#0b1220;
-    z-index:10;
-    flex-direction:column;
-}
-
-.tela.ativa{
-    display:flex;
-}
-
-.telaTopo{
-    height:70px;
-    display:flex;
-    align-items:center;
-    gap:15px;
-    padding:0 18px;
-    background:#111a2b;
-    border-bottom:1px solid #26344d;
-}
-
-.voltar{
-    background:none;
-    border:0;
-    color:white;
-    font-size:32px;
-}
-
-.titulo{
-    font-size:23px;
-    font-weight:bold;
-}
-
-.conteudo{
-    flex:1;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    color:#9ca8bb;
-    text-align:center;
-    padding:30px;
-    font-size:18px;
-}
+.importarBox{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:25px;text-align:center}
+.inputArquivo{display:none}
+.lista{width:min(92vw,500px);max-height:45vh;overflow:auto}
+.item{background:#1d293d;border-radius:14px;padding:13px;margin:7px 0;text-align:left}
+.item b{font-size:17px}
+.item small{display:block;color:#aab4c5;margin-top:5px}
 </style>
 </head>
 
 <body>
 
 <header class="topo">
-    <div class="logo">🧭 Minha Trilha GPS</div>
-    <div class="status" title="GPS"></div>
+  <div class="logo">🧭 Minha Trilha GPS</div>
+  <div class="status"></div>
 </header>
 
 <main class="principal">
+  <button class="botao gravar" onclick="abrirGravar()">
+    <span class="icone">🔴</span> GRAVAR TRILHA
+  </button>
 
-    <button class="botao gravar" onclick="abrirGravar()">
-        <span class="icone">🔴</span>
-        <span>GRAVAR TRILHA</span>
-    </button>
+  <button class="botao locais" onclick="abrirTela('locais')">
+    <span class="icone">📍</span> LOCAIS
+  </button>
 
-    <button class="botao locais" onclick="abrirTela('locais')">
-        <span class="icone">📍</span>
-        <span>LOCAIS</span>
-    </button>
+  <button class="botao trilhas" onclick="abrirTela('trilhas')">
+    <span class="icone">🗺️</span> TRILHAS
+  </button>
 
-    <button class="botao trilhas" onclick="abrirTela('trilhas')">
-        <span class="icone">🗺️</span>
-        <span>TRILHAS</span>
-    </button>
-
+  <button class="botao importar" onclick="abrirImportacao()">
+    <span class="icone">📂</span> IMPORTAR GPX
+  </button>
 </main>
 
-<footer class="rodape">
-    GPS • Trilhas • Pontos marcados
-</footer>
+<footer class="rodape">GPS • Trilhas • Pontos marcados • GPX</footer>
 
-
-<!-- Tela de gravação -->
+<!-- GRAVAÇÃO -->
 <section id="telaGravar" class="tela">
-    <div class="telaTopo">
-        <button class="voltar" onclick="voltarInicio()">‹</button>
-        <div class="titulo">Gravar Trilha</div>
-    </div>
+  <div class="telaTopo">
+    <button class="voltar" onclick="voltarInicio()">‹</button>
+    <div class="titulo">Gravar Trilha</div>
+  </div>
 
-    <div class="conteudo">
-        Aqui vamos colocar o mapa e a gravação da trilha.
+  <div style="position:relative;flex:1;min-height:0">
+    <div id="mapa"></div>
+    <div class="gpsbox" id="gpsbox">
+      <div class="gpserro" id="gpsStatus">🔴 AGUARDANDO GPS</div>
+      <div id="gpsDados">Obtendo localização...</div>
     </div>
+  </div>
+
+  <div class="painel">
+    <div class="info"><b id="distancia">0 m</b><span>DISTÂNCIA</span></div>
+    <div class="info"><b id="velocidade">0.0 km/h</b><span>VELOCIDADE</span></div>
+    <div class="info"><b id="pontos">0</b><span>PONTOS GPS</span></div>
+  </div>
+
+  <div class="acoes">
+    <button class="acao iniciar" onclick="iniciarTrilha()">🔴 INICIAR</button>
+    <button class="acao parar" onclick="pararTrilha()">⏹️ PARAR</button>
+    <button class="acao marcar" onclick="marcarPonto()">📍 MARCAR PONTO</button>
+    <button class="acao limpar" onclick="limparTrilha()">🗑️ LIMPAR</button>
+  </div>
 </section>
 
+<!-- IMPORTAÇÃO -->
+<section id="telaImportar" class="tela">
+  <div class="telaTopo">
+    <button class="voltar" onclick="voltarInicio()">‹</button>
+    <div class="titulo">Importar GPX</div>
+  </div>
+  <div class="importarBox">
+    <div style="font-size:48px">📂</div>
+    <div><b>Escolha um arquivo GPX</b><br><span style="color:#9ca8b8">A rota será carregada no mapa.</span></div>
+    <label class="botao importar" style="min-height:70px;font-size:20px;cursor:pointer">
+      📁 ESCOLHER GPX
+      <input id="arquivoGPX" class="inputArquivo" type="file" accept=".gpx,application/gpx+xml,text/xml,application/xml" onchange="importarGPX(event)">
+    </label>
+    <div id="resultadoGPX" class="lista"></div>
+  </div>
+</section>
 
-<!-- Tela de locais -->
 <section id="telaLocais" class="tela">
-    <div class="telaTopo">
-        <button class="voltar" onclick="voltarInicio()">‹</button>
-        <div class="titulo">Locais</div>
-    </div>
-
-    <div class="conteudo">
-        Aqui vamos colocar os pontos marcados pelo usuário.
-    </div>
+  <div class="telaTopo"><button class="voltar" onclick="voltarInicio()">‹</button><div class="titulo">Locais</div></div>
+  <div class="importarBox">📍<br>Em seguida vamos colocar aqui os pontos marcados.</div>
 </section>
 
-
-<!-- Tela de trilhas -->
 <section id="telaTrilhas" class="tela">
-    <div class="telaTopo">
-        <button class="voltar" onclick="voltarInicio()">‹</button>
-        <div class="titulo">Trilhas</div>
-    </div>
-
-    <div class="conteudo">
-        Aqui vamos colocar o Gerenciador de Rotas e as trilhas salvas.
-    </div>
+  <div class="telaTopo"><button class="voltar" onclick="voltarInicio()">‹</button><div class="titulo">Trilhas</div></div>
+  <div class="importarBox">🗺️<br>Em seguida vamos colocar aqui as trilhas salvas.</div>
 </section>
 
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
+let mapa;
+let marcadorAtual;
+let linhaTrilha;
+let pontos=[];
+let pontosManuais=[];
+let gravando=false;
+let watchId=null;
+let ultimaPosicao=null;
+let distanciaTotal=0;
+
 function abrirGravar(){
-    document.getElementById("telaGravar").classList.add("ativa");
+  document.getElementById("telaGravar").classList.add("ativa");
+  setTimeout(()=>{
+    iniciarMapa();
+    iniciarGPS();
+  },100);
+}
+
+function iniciarMapa(){
+  if(mapa) return;
+  mapa=L.map("mapa").setView([-22.1547,-51.4534],16);
+
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{
+    maxZoom:19,
+    attribution:"© OpenStreetMap"
+  }).addTo(mapa);
+
+  linhaTrilha=L.polyline([],{
+    color:"#f59e0b",
+    weight:6,
+    opacity:.95
+  }).addTo(mapa);
+}
+
+function iniciarGPS(){
+  if(!navigator.geolocation){
+    atualizarGPS(false,"GPS não disponível neste navegador.");
+    return;
+  }
+
+  if(watchId!==null) return;
+
+  watchId=navigator.geolocation.watchPosition(
+    receberPosicao,
+    ()=>atualizarGPS(false,"Permissão/localização indisponível."),
+    {enableHighAccuracy:true,maximumAge:1000,timeout:15000}
+  );
+}
+
+function receberPosicao(pos){
+  const lat=pos.coords.latitude;
+  const lon=pos.coords.longitude;
+  const acc=pos.coords.accuracy||0;
+  const vel=pos.coords.speed;
+
+  ultimaPosicao={lat,lon,acc,vel};
+
+  atualizarGPS(true,
+    "LAT: "+lat.toFixed(6)+
+    " | LON: "+lon.toFixed(6)+
+    " | PREC: "+Math.round(acc)+" m"
+  );
+
+  if(!mapa) return;
+
+  if(!marcadorAtual){
+    marcadorAtual=L.marker([lat,lon]).addTo(mapa);
+  }else{
+    marcadorAtual.setLatLng([lat,lon]);
+  }
+
+  if(!gravando) return;
+
+  const ponto=[lat,lon];
+
+  if(pontos.length){
+    const anterior=pontos[pontos.length-1];
+    const d=mapa.distance(anterior,ponto);
+
+    if(d<2) return;
+    distanciaTotal+=d;
+  }
+
+  pontos.push(ponto);
+  linhaTrilha.setLatLngs(pontos);
+
+  document.getElementById("pontos").textContent=pontos.length;
+  document.getElementById("distancia").textContent=
+    distanciaTotal<1000
+      ? Math.round(distanciaTotal)+" m"
+      : (distanciaTotal/1000).toFixed(2)+" km";
+
+  let kmh=(typeof vel==="number" && vel>=0)?vel*3.6:0;
+  document.getElementById("velocidade").textContent=kmh.toFixed(1)+" km/h";
+}
+
+function atualizarGPS(ok,texto){
+  const s=document.getElementById("gpsStatus");
+  const d=document.getElementById("gpsDados");
+
+  if(ok){
+    s.className="gpsok";
+    s.textContent="🟢 GPS FUNCIONANDO";
+  }else{
+    s.className="gpserro";
+    s.textContent="🔴 GPS";
+  }
+
+  d.textContent=texto;
+}
+
+function iniciarTrilha(){
+  if(!ultimaPosicao){
+    alert("Aguarde o GPS obter sua posição.");
+    return;
+  }
+
+  if(gravando) return;
+
+  gravando=true;
+  pontos=[];
+  distanciaTotal=0;
+  linhaTrilha.setLatLngs([]);
+
+  pontos.push([ultimaPosicao.lat,ultimaPosicao.lon]);
+  linhaTrilha.setLatLngs(pontos);
+
+  document.getElementById("pontos").textContent="1";
+}
+
+function pararTrilha(){
+  gravando=false;
+
+  if(pontos.length<2){
+    alert("Poucos pontos para formar uma trilha.");
+    return;
+  }
+
+  const nome=prompt("Nome da trilha:","Minha trilha");
+  if(nome===null) return;
+
+  salvarTrilhaLocal(nome.trim()||"Minha trilha");
+}
+
+function marcarPonto(){
+  if(!ultimaPosicao){
+    alert("Aguarde o GPS.");
+    return;
+  }
+
+  const nome=prompt(
+    "Nome do ponto:",
+    "Ponto "+(pontosManuais.length+1)
+  );
+
+  if(nome===null) return;
+
+  const p={
+    nome:nome.trim()||("Ponto "+(pontosManuais.length+1)),
+    lat:ultimaPosicao.lat,
+    lon:ultimaPosicao.lon,
+    data:new Date().toISOString()
+  };
+
+  pontosManuais.push(p);
+
+  L.marker([p.lat,p.lon],{
+    title:p.nome
+  }).addTo(mapa).bindPopup("📍 <b>"+escapeHtml(p.nome)+"</b>");
+}
+
+function limparTrilha(){
+  pontos=[];
+  distanciaTotal=0;
+  gravando=false;
+  if(linhaTrilha) linhaTrilha.setLatLngs([]);
+  document.getElementById("pontos").textContent="0";
+  document.getElementById("distancia").textContent="0 m";
+  document.getElementById("velocidade").textContent="0.0 km/h";
+}
+
+function salvarTrilhaLocal(nome){
+  const rota={
+    nome:nome,
+    data:new Date().toISOString(),
+    distancia:distanciaTotal,
+    pontos:pontos,
+    pontosManuais:pontosManuais
+  };
+
+  const lista=JSON.parse(localStorage.getItem("minhas_trilhas")||"[]");
+  lista.push(rota);
+  localStorage.setItem("minhas_trilhas",JSON.stringify(lista));
+
+  exportarGPX(rota);
+}
+
+function exportarGPX(rota){
+  let gpx='<?xml version="1.0" encoding="UTF-8"?>\\n';
+  gpx+='<gpx version="1.1" creator="Minha Trilha GPS" xmlns="http://www.topografix.com/GPX/1/1">\\n';
+  gpx+='  <trk><name>'+escapeXml(rota.nome)+'</name><trkseg>\\n';
+
+  rota.pontos.forEach(p=>{
+    gpx+='    <trkpt lat="'+p[0]+'" lon="'+p[1]+'"></trkpt>\\n';
+  });
+
+  gpx+='  </trkseg></trk>\\n';
+
+  rota.pontosManuais.forEach(p=>{
+    gpx+='  <wpt lat="'+p.lat+'" lon="'+p.lon+'"><name>'+escapeXml(p.nome)+'</name></wpt>\\n';
+  });
+
+  gpx+='</gpx>';
+
+  const blob=new Blob([gpx],{type:"application/gpx+xml"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url;
+  a.download=nomeArquivo(rota.nome)+".gpx";
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+
+function importarGPX(event){
+  const file=event.target.files[0];
+  if(!file) return;
+
+  const reader=new FileReader();
+
+  reader.onload=function(){
+    try{
+      const xml=new DOMParser().parseFromString(
+        reader.result,"application/xml"
+      );
+
+      const pontosGPX=[
+        ...xml.querySelectorAll("trkpt")
+      ].map(p=>[
+        parseFloat(p.getAttribute("lat")),
+        parseFloat(p.getAttribute("lon"))
+      ]).filter(p=>Number.isFinite(p[0])&&Number.isFinite(p[1]));
+
+      const waypoints=[
+        ...xml.querySelectorAll("wpt")
+      ].map(p=>({
+        lat:parseFloat(p.getAttribute("lat")),
+        lon:parseFloat(p.getAttribute("lon")),
+        nome:p.querySelector("name")?.textContent||"Ponto"
+      })).filter(p=>Number.isFinite(p.lat)&&Number.isFinite(p.lon));
+
+      if(!pontosGPX.length && !waypoints.length){
+        throw new Error("Nenhum ponto encontrado.");
+      }
+
+      abrirGravar();
+
+      setTimeout(()=>{
+        if(pontosGPX.length){
+          linhaTrilha.setLatLngs(pontosGPX);
+          mapa.fitBounds(linhaTrilha.getBounds(),{padding:[30,30]});
+
+          distanciaTotal=0;
+          for(let i=1;i<pontosGPX.length;i++){
+            distanciaTotal+=mapa.distance(
+              pontosGPX[i-1],pontosGPX[i]
+            );
+          }
+
+          document.getElementById("pontos").textContent=pontosGPX.length;
+          document.getElementById("distancia").textContent=
+            distanciaTotal<1000
+              ? Math.round(distanciaTotal)+" m"
+              : (distanciaTotal/1000).toFixed(2)+" km";
+        }
+
+        waypoints.forEach(p=>{
+          L.marker([p.lat,p.lon],{title:p.nome})
+            .addTo(mapa)
+            .bindPopup("📍 <b>"+escapeHtml(p.nome)+"</b>");
+        });
+
+        document.getElementById("resultadoGPX").innerHTML=
+          "<div class='item'><b>✅ GPX importado</b><small>"+
+          file.name+" • "+
+          pontosGPX.length+" pontos de trilha • "+
+          waypoints.length+" locais</small></div>";
+      },300);
+
+    }catch(e){
+      document.getElementById("resultadoGPX").innerHTML=
+        "<div class='item'><b>❌ Erro</b><small>"+
+        escapeHtml(e.message)+"</small></div>";
+    }
+  };
+
+  reader.readAsText(file);
+}
+
+function abrirImportacao(){
+  document.getElementById("telaImportar").classList.add("ativa");
 }
 
 function abrirTela(tipo){
-
-    document.getElementById("telaLocais").classList.remove("ativa");
-    document.getElementById("telaTrilhas").classList.remove("ativa");
-
-    if(tipo === "locais"){
-        document.getElementById("telaLocais").classList.add("ativa");
-    }
-
-    if(tipo === "trilhas"){
-        document.getElementById("telaTrilhas").classList.add("ativa");
-    }
+  document.getElementById("telaLocais").classList.toggle(
+    "ativa",tipo==="locais"
+  );
+  document.getElementById("telaTrilhas").classList.toggle(
+    "ativa",tipo==="trilhas"
+  );
 }
 
 function voltarInicio(){
-    document.querySelectorAll(".tela").forEach(t =>
-        t.classList.remove("ativa")
-    );
+  document.querySelectorAll(".tela").forEach(t=>
+    t.classList.remove("ativa")
+  );
+}
+
+function nomeArquivo(nome){
+  return nome.replace(/[\\\\/:*?"<>|]/g,"_").trim()||"trilha";
+}
+
+function escapeXml(text){
+  return String(text)
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;")
+    .replace(/'/g,"&apos;");
+}
+
+function escapeHtml(text){
+  return String(text)
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;")
+    .replace(/'/g,"&#039;");
 }
 </script>
-
 </body>
 </html>
