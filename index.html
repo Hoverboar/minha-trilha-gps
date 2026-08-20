@@ -635,6 +635,7 @@ function importarGPX(event){
   if(!arquivo)return;
 
   const leitor=new FileReader();
+
   leitor.onload=function(){
     try{
       const texto=String(leitor.result||"");
@@ -644,63 +645,90 @@ function importarGPX(event){
         throw new Error("GPX inválido.");
       }
 
-      const trackPoints=[...doc.querySelectorAll("trkpt")];
-      const routePoints=[...doc.querySelectorAll("rtept")];
-      const wayPoints=[...doc.querySelectorAll("wpt")];
+      // IMPORTANTE:
+      // Cada <trk> do GPX vira uma trilha independente.
+      const tracks=[...doc.querySelectorAll("trk")];
 
-      const pontos=trackPoints.length ? trackPoints : (routePoints.length ? routePoints : wayPoints);
-
-      if(!pontos.length){
-        alert("Não encontrei pontos de GPS neste arquivo GPX.");
+      if(!tracks.length){
+        alert("Este GPX não possui trilhas (<trk>) separadas.");
         return;
-      }
-
-      const nomeNoArquivo=arquivo.name.replace(/\.gpx$/i,"").trim();
-      const nomeGPX=nomeNoArquivo || "Trilha importada";
-
-      const coords=pontos.map(pt=>({
-        lat:parseFloat(pt.getAttribute("lat")),
-        lon:parseFloat(pt.getAttribute("lon")),
-        hora:(pt.querySelector("time")||{}).textContent || null
-      })).filter(p=>Number.isFinite(p.lat)&&Number.isFinite(p.lon));
-
-      if(coords.length<2){
-        alert("O GPX precisa ter pelo menos 2 posições válidas.");
-        return;
-      }
-
-      let dist=0;
-      for(let i=1;i<coords.length;i++){
-        dist+=distanciaMetros(
-          coords[i-1].lat,coords[i-1].lon,
-          coords[i].lat,coords[i].lon
-        );
       }
 
       const lista=obterTrilhas();
-      const id="gpx_"+Date.now();
+      const nomeArquivo=arquivo.name.replace(/\.gpx$/i,"").trim() || "GPX";
 
-      lista.unshift({
-        id:id,
-        nome:nomeGPX,
-        pontos:coords,
-        distancia:dist,
-        data:new Date().toISOString(),
-        origem:"GPX"
+      let quantidadeImportada=0;
+
+      tracks.forEach((trk,index)=>{
+        // Procura o nome próprio da trilha.
+        const nomeTag=trk.querySelector(":scope > name");
+        const nomeOriginal=nomeTag ? nomeTag.textContent.trim() : "";
+
+        const nomeTrilha =
+          nomeOriginal ||
+          (tracks.length===1 ? nomeArquivo : nomeArquivo+" - Trilha "+(index+1));
+
+        // Cada trk pode ter um ou vários trkseg.
+        // Todos os pontos pertencentes a esse <trk> continuam juntos.
+        const pontos=[...trk.querySelectorAll("trkpt")]
+          .map(pt=>({
+            lat:parseFloat(pt.getAttribute("lat")),
+            lon:parseFloat(pt.getAttribute("lon")),
+            hora:(pt.querySelector("time")||{}).textContent || null
+          }))
+          .filter(pt=>Number.isFinite(pt.lat)&&Number.isFinite(pt.lon));
+
+        if(pontos.length<2)return;
+
+        let distancia=0;
+
+        for(let i=1;i<pontos.length;i++){
+          distancia+=distanciaMetros(
+            pontos[i-1].lat,pontos[i-1].lon,
+            pontos[i].lat,pontos[i].lon
+          );
+        }
+
+        lista.unshift({
+          id:"gpx_"+Date.now()+"_"+index,
+          nome:nomeTrilha,
+          pontos:pontos,
+          distancia:distancia,
+          data:new Date().toISOString(),
+          origem:"GPX",
+          arquivoGPX:arquivo.name,
+          numeroTrilhaGPX:index+1
+        });
+
+        quantidadeImportada++;
       });
+
+      if(!quantidadeImportada){
+        alert("Não encontrei pontos suficientes nas trilhas deste GPX.");
+        return;
+      }
 
       salvarLista(lista);
 
-      alert("GPX importado com sucesso:\\n"+nomeGPX+"\\n"+formatarDistancia(dist));
+      alert(
+        quantidadeImportada===1
+        ? "1 trilha importada."
+        : quantidadeImportada+" trilhas importadas separadamente."
+      );
 
       renderizarLista();
       abrirListaTrilhas();
+
     }catch(e){
       console.error(e);
       alert("Não foi possível importar este GPX.");
     }
   };
-  leitor.onerror=function(){alert("Erro ao ler o arquivo GPX.")};
+
+  leitor.onerror=function(){
+    alert("Erro ao ler o arquivo GPX.");
+  };
+
   leitor.readAsText(arquivo);
 }
 
