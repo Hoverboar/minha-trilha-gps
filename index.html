@@ -534,19 +534,77 @@ function adicionarItemTrilha(lista,t){
 function abrirTrilhaSalva(id){
   const t=obterTrilhas().find(x=>x.id===id);
   if(!t)return;
-  if(gravando && id===trilhaAtualId){
-    abrirMapa();return;
+
+  // Uma trilha salva/GPX é apenas visualização.
+  // Não altera a gravação que porventura esteja ativa.
+  const coords=(t.pontos||[])
+    .map(p=>[Number(p.lat),Number(p.lon)])
+    .filter(p=>Number.isFinite(p[0])&&Number.isFinite(p[1]));
+
+  if(coords.length<2){
+    alert("Esta trilha não possui pontos suficientes para desenhar.");
+    return;
   }
-  nomeTrilhaAtual=t.nome;
-  pontosTrilha=t.pontos||[];
-  distanciaTotal=t.distancia||0;
-  ultimoPonto=pontosTrilha.length?pontosTrilha[pontosTrilha.length-1]:null;
-  gravando=false;
-  linhaTrilha.setLatLngs(pontosTrilha.map(p=>[p.lat,p.lon]));
+
+  modoVisualizacao="mapa";
+
+  el("telaPrincipal").classList.add("hidden");
+  el("telaTrilhas").classList.add("hidden");
+  el("telaMapa").classList.remove("hidden");
+
+  // Mostra o nome da trilha selecionada.
+  el("nomeMapa").textContent=t.nome || "Trilha";
+
+  // Não transforma uma trilha salva em uma gravação nova.
+  // Se já existe uma gravação ativa, ela continua separadamente.
+  if(!gravando){
+    nomeTrilhaAtual=t.nome || "Trilha";
+    pontosTrilha=t.pontos||[];
+    distanciaTotal=t.distancia||0;
+    ultimoPonto=pontosTrilha.length
+      ? pontosTrilha[pontosTrilha.length-1]
+      : null;
+  }
+
+  // Desenha explicitamente a trilha selecionada.
+  linhaTrilha.setLatLngs(coords);
+  linhaTrilha.bringToFront();
+
+  // Ajusta o zoom para mostrar TODA a trilha.
+  setTimeout(()=>{
+    mapa.invalidateSize();
+
+    if(coords.length>=2){
+      const bounds=L.latLngBounds(coords);
+      mapa.fitBounds(bounds,{padding:[45,45],maxZoom:18});
+    }
+  },100);
+
   atualizarMetricas();
-  abrirMapa();
-  el("statusMapa").textContent="🗺️ TRILHA SALVA";
-  el("mensagemMapa").textContent="Visualizando uma trilha já gravada.";
+
+  el("statusMapa").textContent =
+    t.origem==="GPX" ? "📥 GPX IMPORTADO" : "🗺️ TRILHA SALVA";
+
+  el("mensagemMapa").textContent =
+    t.origem==="GPX"
+      ? "Visualizando a trilha importada."
+      : "Visualizando a trilha gravada.";
+
+  // Mostra pontos inicial/final da trilha selecionada.
+  if(marcadorInicio){
+    mapa.removeLayer(marcadorInicio);
+  }
+
+  const inicio=coords[0];
+  marcadorInicio=L.circleMarker(inicio,{
+    radius:8,
+    color:"#16a34a",
+    fillColor:"#22c55e",
+    fillOpacity:1,
+    weight:3
+  }).addTo(mapa);
+
+  marcadorInicio.bindPopup("🏁 Início da trilha");
 }
 
 function apagarTrilha(id){
