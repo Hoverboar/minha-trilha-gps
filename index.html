@@ -54,6 +54,28 @@ body{display:flex;flex-direction:column}
 .item{background:#1d293d;border-radius:14px;padding:13px;margin:7px 0;text-align:left}
 .item b{font-size:17px}
 .item small{display:block;color:#aab4c5;margin-top:5px}
+#statusGravacao{
+  position:absolute;
+  top:70px;
+  left:16px;
+  z-index:1000;
+  background:#202a3a;
+  color:#d0d5dd;
+  padding:10px 16px;
+  border-radius:14px;
+  font-size:18px;
+  font-weight:800;
+  box-shadow:0 4px 14px rgba(0,0,0,.35);
+}
+#statusGravacao.gravando{
+  background:#b91c1c;
+  color:#fff;
+  animation:pulseGravando 1.2s infinite;
+}
+@keyframes pulseGravando{
+  0%,100%{opacity:1}
+  50%{opacity:.65}
+}
 </style>
 </head>
 
@@ -92,7 +114,8 @@ body{display:flex;flex-direction:column}
   </div>
 
   <div style="position:relative;flex:1;min-height:0">
-    <div id="mapa"></div>
+    <div id="statusGravacao">⚪ NÃO GRAVANDO</div>
+<div id="mapa"></div>
     <div class="gpsbox" id="gpsbox">
       <div class="gpserro" id="gpsStatus">🔴 AGUARDANDO GPS</div>
       <div id="gpsDados">Obtendo localização...</div>
@@ -271,6 +294,18 @@ function solicitarPosicaoDuranteGravacao(){
   );
 }
 
+function atualizarStatusGravacao(ativo){
+  const el=document.getElementById("statusGravacao");
+  if(!el) return;
+  if(ativo){
+    el.textContent="🔴 GRAVANDO";
+    el.classList.add("gravando");
+  }else{
+    el.textContent="⚪ NÃO GRAVANDO";
+    el.classList.remove("gravando");
+  }
+}
+
 function iniciarTrilha(){
   if(!ultimaPosicao){
     alert("Aguarde o GPS obter sua posição.");
@@ -280,7 +315,10 @@ function iniciarTrilha(){
   if(gravando) return;
 
   gravando=true;
+  atualizarStatusGravacao(true);
   document.getElementById("tituloGravar").textContent="🔴 GRAVANDO TRILHA";
+  const btnIniciar=document.getElementById("btnIniciar");
+  if(btnIniciar) btnIniciar.textContent="🔴 GRAVANDO";
   pontos=[];
   distanciaTotal=0;
   linhaTrilha.setLatLngs([]);
@@ -299,7 +337,10 @@ function iniciarTrilha(){
 
 function pararTrilha(){
   gravando=false;
+  atualizarStatusGravacao(false);
   document.getElementById("tituloGravar").textContent="Gravar Trilha";
+  const btnIniciar=document.getElementById("btnIniciar");
+  if(btnIniciar) btnIniciar.textContent="🔴 INICIAR";
   clearInterval(gravacaoInterval);
   gravacaoInterval=null;
 
@@ -343,7 +384,10 @@ function marcarPonto(){
 
 function limparTrilha(){
   gravando=false;
+  atualizarStatusGravacao(false);
   document.getElementById("tituloGravar").textContent="Gravar Trilha";
+  const btnIniciar=document.getElementById("btnIniciar");
+  if(btnIniciar) btnIniciar.textContent="🔴 INICIAR";
   clearInterval(gravacaoInterval);
   gravacaoInterval=null;
   pontos=[];
