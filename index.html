@@ -15,7 +15,7 @@ body{display:flex;flex-direction:column}
 
 .topo{height:68px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:0 18px;background:#111a2b;border-bottom:1px solid #26344d}
 .logo{font-size:23px;font-weight:bold}
-.status{width:16px;height:16px;border-radius:50%;background:#22c55e;box-shadow:0 0 10px #22c55e;transition:.2s}.status.gravando{background:#ef4444;box-shadow:0 0 14px #ef4444;animation:pulseTopo 1s infinite}@keyframes pulseTopo{0%,100%{opacity:1}50%{opacity:.45}}
+.status{width:14px;height:14px;border-radius:50%;background:#22c55e;box-shadow:0 0 10px #22c55e}
 
 .principal{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:22px}
 .botao{width:min(90vw,430px);min-height:92px;border:0;border-radius:23px;color:white;font-size:24px;font-weight:bold;display:flex;align-items:center;justify-content:center;gap:14px;box-shadow:0 7px 16px #0006}
@@ -42,7 +42,7 @@ body{display:flex;flex-direction:column}
 .acoes{background:#111a2b;padding:8px;display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .acao{border:0;border-radius:15px;min-height:53px;color:white;font-weight:bold;font-size:16px}
 .iniciar{background:#f59e0b}.parar{background:#4b5563}.marcar{background:#7c3aed}.limpar{background:#dc2626}
-.acao:active{transform:scale(.97)}.acao:disabled{opacity:.8;transform:none}
+.acao:active{transform:scale(.97)}
 
 .gpsbox{position:absolute;z-index:500;top:75px;left:12px;background:#111a2beF;border-radius:16px;padding:10px 13px;box-shadow:0 5px 15px #0007;font-size:13px}
 .gpsok{color:#4ade80;font-weight:bold;font-size:17px}
@@ -54,6 +54,28 @@ body{display:flex;flex-direction:column}
 .item{background:#1d293d;border-radius:14px;padding:13px;margin:7px 0;text-align:left}
 .item b{font-size:17px}
 .item small{display:block;color:#aab4c5;margin-top:5px}
+#statusGravacao{
+  position:absolute;
+  top:70px;
+  left:16px;
+  z-index:1000;
+  background:#202a3a;
+  color:#d0d5dd;
+  padding:10px 16px;
+  border-radius:14px;
+  font-size:18px;
+  font-weight:800;
+  box-shadow:0 4px 14px rgba(0,0,0,.35);
+}
+#statusGravacao.gravando{
+  background:#b91c1c;
+  color:#fff;
+  animation:pulseGravando 1.2s infinite;
+}
+@keyframes pulseGravando{
+  0%,100%{opacity:1}
+  50%{opacity:.65}
+}
 </style>
 </head>
 
@@ -61,7 +83,7 @@ body{display:flex;flex-direction:column}
 
 <header class="topo">
   <div class="logo">🧭 Minha Trilha GPS</div>
-  <div class="status" id="statusTopo"></div>
+  <div class="status"></div>
 </header>
 
 <main class="principal">
@@ -92,7 +114,8 @@ body{display:flex;flex-direction:column}
   </div>
 
   <div style="position:relative;flex:1;min-height:0">
-    <div id="mapa"></div>
+    <div id="statusGravacao">⚪ NÃO GRAVANDO</div>
+<div id="mapa"></div>
     <div class="gpsbox" id="gpsbox">
       <div class="gpserro" id="gpsStatus">🔴 AGUARDANDO GPS</div>
       <div id="gpsDados">Obtendo localização...</div>
@@ -106,7 +129,7 @@ body{display:flex;flex-direction:column}
   </div>
 
   <div class="acoes">
-    <button class="acao iniciar" id="btnIniciar" onclick="iniciarTrilha()">🔴 INICIAR</button>
+    <button class="acao iniciar" onclick="iniciarTrilha()">🔴 INICIAR</button>
     <button class="acao parar" onclick="pararTrilha()">⏹️ PARAR</button>
     <button class="acao marcar" onclick="marcarPonto()">📍 MARCAR PONTO</button>
     <button class="acao limpar" onclick="limparTrilha()">🗑️ LIMPAR</button>
@@ -158,6 +181,9 @@ function abrirGravar(){
   document.getElementById("telaGravar").classList.add("ativa");
   setTimeout(()=>{
     iniciarMapa();
+    setTimeout(()=>{
+      if(mapa) mapa.invalidateSize();
+    },200);
     iniciarGPS();
   },100);
 }
@@ -172,10 +198,15 @@ function iniciarMapa(){
   }).addTo(mapa);
 
   linhaTrilha=L.polyline([],{
-    color:"#f59e0b",
-    weight:6,
-    opacity:.95
+    color:"#ff8c00",
+    weight:8,
+    opacity:1,
+    lineCap:"round",
+    lineJoin:"round",
+    interactive:false
   }).addTo(mapa);
+
+  linhaTrilha.bringToFront();
 }
 
 function iniciarGPS(){
@@ -218,6 +249,12 @@ function receberPosicao(pos){
   if(!gravando) return;
 
   adicionarPontoTrilha(lat,lon,vel);
+
+  // Mantém a posição atual visível e garante que a trilha fique acima do mapa.
+  if(mapa){
+    mapa.panTo([lat,lon],{animate:false});
+    if(linhaTrilha) linhaTrilha.bringToFront();
+  }
 }
 
 function atualizarGPS(ok,texto){
@@ -248,7 +285,11 @@ function adicionarPontoTrilha(lat,lon,vel){
   }
 
   pontos.push(ponto);
+
+  // Desenha imediatamente o caminho percorrido.
   linhaTrilha.setLatLngs(pontos);
+  linhaTrilha.bringToFront();
+
   if(marcadorAtual) marcadorAtual.setLatLng([lat,lon]);
 
   document.getElementById("pontos").textContent=pontos.length;
@@ -272,9 +313,15 @@ function solicitarPosicaoDuranteGravacao(){
 }
 
 function atualizarStatusGravacao(ativo){
-  const el=document.getElementById("statusTopo");
+  const el=document.getElementById("statusGravacao");
   if(!el) return;
-  el.classList.toggle("gravando", !!ativo);
+  if(ativo){
+    el.textContent="🔴 GRAVANDO";
+    el.classList.add("gravando");
+  }else{
+    el.textContent="⚪ NÃO GRAVANDO";
+    el.classList.remove("gravando");
+  }
 }
 
 function iniciarTrilha(){
@@ -289,13 +336,15 @@ function iniciarTrilha(){
   atualizarStatusGravacao(true);
   document.getElementById("tituloGravar").textContent="🔴 GRAVANDO TRILHA";
   const btnIniciar=document.getElementById("btnIniciar");
-  if(btnIniciar){ btnIniciar.textContent="🔴 GRAVANDO"; btnIniciar.disabled=true; }
+  if(btnIniciar) btnIniciar.textContent="🔴 GRAVANDO";
   pontos=[];
   distanciaTotal=0;
   linhaTrilha.setLatLngs([]);
 
   pontos.push([ultimaPosicao.lat,ultimaPosicao.lon]);
   linhaTrilha.setLatLngs(pontos);
+  linhaTrilha.bringToFront();
+  mapa.panTo([ultimaPosicao.lat,ultimaPosicao.lon],{animate:false});
 
   document.getElementById("pontos").textContent="1";
   document.getElementById("distancia").textContent="0 m";
@@ -311,7 +360,7 @@ function pararTrilha(){
   atualizarStatusGravacao(false);
   document.getElementById("tituloGravar").textContent="Gravar Trilha";
   const btnIniciar=document.getElementById("btnIniciar");
-  if(btnIniciar){ btnIniciar.textContent="🔴 INICIAR"; btnIniciar.disabled=false; }
+  if(btnIniciar) btnIniciar.textContent="🔴 INICIAR";
   clearInterval(gravacaoInterval);
   gravacaoInterval=null;
 
@@ -358,7 +407,7 @@ function limparTrilha(){
   atualizarStatusGravacao(false);
   document.getElementById("tituloGravar").textContent="Gravar Trilha";
   const btnIniciar=document.getElementById("btnIniciar");
-  if(btnIniciar){ btnIniciar.textContent="🔴 INICIAR"; btnIniciar.disabled=false; }
+  if(btnIniciar) btnIniciar.textContent="🔴 INICIAR";
   clearInterval(gravacaoInterval);
   gravacaoInterval=null;
   pontos=[];
