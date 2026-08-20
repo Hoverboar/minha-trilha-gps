@@ -76,6 +76,9 @@ button{font-family:inherit;border:0;cursor:pointer;color:#fff}
 /* MAPA / GRAVAÇÃO */
 #telaMapa{position:fixed;inset:0;background:#000}
 #map{position:absolute;inset:0;width:100%;height:100%;z-index:1}
+#telaLocais{position:fixed;inset:0;background:#000;z-index:5}
+#mapLocais{position:absolute;inset:0;width:100%;height:100%;z-index:1}
+
 .mapaBarra{
   position:absolute;top:8px;left:8px;right:8px;height:58px;z-index:1000;
   display:flex;align-items:center;gap:8px;pointer-events:none;
@@ -185,6 +188,10 @@ button{font-family:inherit;border:0;cursor:pointer;color:#fff}
       🗺️ TRILHAS
     </button>
 
+    <button class="btnPrincipal" style="background:#16a34a" onclick="abrirLocais()">
+      📍 LOCAIS
+    </button>
+
     <button class="btnPrincipal btnImportar" onclick="abrirImportadorGPX()">
       📥 IMPORTAR GPX
     </button>
@@ -202,6 +209,21 @@ button{font-family:inherit;border:0;cursor:pointer;color:#fff}
     <button class="btnMini" style="margin-left:auto;flex:0 0 auto;padding:9px 12px;background:#4b5563" onclick="abrirImportadorGPX()">📥 GPX</button>
   </div>
   <div id="listaTrilhas" class="lista"></div>
+</section>
+
+<!-- ================= LOCAIS ================= -->
+<section id="telaLocais" class="hidden">
+  <div id="mapLocais"></div>
+
+  <div class="mapaBarra">
+    <button class="btnVoltar" onclick="voltarPrincipal()">‹</button>
+    <div class="nomeMapa">📍 Locais</div>
+  </div>
+
+  <div id="contadorLocais" class="statusMapa">
+    <span>📍 0 LOCAIS</span>
+    <small>Toque em um marcador para ver os dados.</small>
+  </div>
 </section>
 
 <!-- ================= MAPA ================= -->
@@ -242,6 +264,7 @@ button{font-family:inherit;border:0;cursor:pointer;color:#fff}
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 let mapa=null;
+let mapaLocais=null;
 let marcador=null;
 let circuloPrecisao=null;
 let watchId=null;
@@ -255,6 +278,7 @@ let ultimaHoraVelocidade=null;
 let linhaTrilha=null;
 let pontosVisiveis=null;
 let marcadorInicio=null;
+let locaisNaTrilha=null;
 let trilhaAtualId=null;
 let nomeTrilhaAtual="";
 let modoVisualizacao="principal";
@@ -263,6 +287,7 @@ let timerControleCentro=null;
 
 const CHAVE_TRILHAS="minha_trilhas_gps_v2";
 const CHAVE_ATIVA="minha_trilha_ativa_gps_v2";
+const CHAVE_LOCAIS="minha_locais_gps_v1";
 
 function el(id){return document.getElementById(id)}
 
@@ -308,6 +333,129 @@ function setCentralizacao(valor){
     const p=marcador.getLatLng();
     mapa.setView(p,mapa.getZoom(),{animate:true});
   }
+}
+
+function obterLocais(){
+  try{
+    return JSON.parse(localStorage.getItem(CHAVE_LOCAIS)||"[]");
+  }catch(e){
+    return [];
+  }
+}
+
+function salvarLocais(locais){
+  localStorage.setItem(CHAVE_LOCAIS,JSON.stringify(locais));
+}
+
+function criarMarcadorLocal(local){
+  const lat=Number(local.lat), lon=Number(local.lon);
+  if(!Number.isFinite(lat)||!Number.isFinite(lon)) return null;
+
+  const origem=local.origem==="GPX" ? "📥 GPX" : "📍 MARCADO";
+  const nome=esc(local.nome||"Local");
+  const desc=local.descricao ? "<br>"+esc(local.descricao) : "";
+  const ele=Number.isFinite(Number(local.ele))
+    ? "<br>⛰️ Altitude: "+Number(local.ele).toFixed(1)+" m"
+    : "";
+
+  const m=L.marker([lat,lon]);
+  m.bindPopup(
+    "<b>📍 "+nome+"</b>"+
+    "<br>"+origem+
+    "<br>LAT: "+lat.toFixed(6)+
+    "<br>LON: "+lon.toFixed(6)+
+    ele+desc
+  );
+  return m;
+}
+
+function mostrarLocaisNoMapa(mapaAlvo,locais){
+  const grupo=L.layerGroup().addTo(mapaAlvo);
+
+  (locais||[]).forEach(local=>{
+    const m=criarMarcadorLocal(local);
+    if(m) m.addTo(grupo);
+  });
+
+  return grupo;
+}
+
+function abrirLocais(){
+  el("telaPrincipal").classList.add("hidden");
+  el("telaTrilhas").classList.add("hidden");
+  el("telaMapa").classList.add("hidden");
+  el("telaLocais").classList.remove("hidden");
+
+  if(!mapaLocais){
+    mapaLocais=L.map("mapLocais").setView([-21.4586,-51.9167],12);
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{
+      maxZoom:19,
+      attribution:"&copy; OpenStreetMap"
+    }).addTo(mapaLocais);
+
+    mapaLocais.on("click",mostrarControleCentro);
+  }
+
+  // Remove marcadores anteriores e desenha todos novamente.
+  mapaLocais.eachLayer(layer=>{
+    if(layer instanceof L.LayerGroup){
+      mapaLocais.removeLayer(layer);
+    }
+  });
+
+  const locais=obterLocais();
+  mostrarLocaisNoMapa(mapaLocais,locais);
+
+  el("contadorLocais").innerHTML=
+    "<span>📍 "+locais.length+" LOCAL"+(locais.length===1?"":"IS")+"</span>"+
+    "<small>Toque em um marcador para ver os dados.</small>";
+
+  setTimeout(()=>{
+    mapaLocais.invalidateSize();
+
+    if(locais.length){
+      const coords=locais
+        .map(p=>[Number(p.lat),Number(p.lon)])
+        .filter(p=>Number.isFinite(p[0])&&Number.isFinite(p[1]));
+
+      if(coords.length){
+        mapaLocais.fitBounds(L.latLngBounds(coords),{
+          padding:[60,60],
+          maxZoom:17
+        });
+      }
+    }
+  },100);
+}
+
+function desenharLocaisProximosDaTrilha(coords){
+  if(!mapa || !coords || !coords.length) return;
+
+  const locais=obterLocais();
+  const grupo=L.layerGroup();
+
+  // Mostra locais que estejam até aproximadamente 1 km da trilha.
+  locais.forEach(local=>{
+    const lat=Number(local.lat), lon=Number(local.lon);
+    if(!Number.isFinite(lat)||!Number.isFinite(lon)) return;
+
+    let menor=Infinity;
+
+    for(const p of coords){
+      const d=distanciaMetros(p[0],p[1],lat,lon);
+      if(d<menor) menor=d;
+      if(menor<=1000) break;
+    }
+
+    if(menor<=1000){
+      const m=criarMarcadorLocal(local);
+      if(m) m.addTo(grupo);
+    }
+  });
+
+  grupo.addTo(mapa);
+  return grupo;
 }
 
 function iniciarMapa(){
@@ -432,6 +580,10 @@ function acaoBotaoGravacao(){
 function limparPontosVisiveis(){
   if(pontosVisiveis){
     pontosVisiveis.clearLayers();
+  }
+  if(locaisNaTrilha){
+    mapa.removeLayer(locaisNaTrilha);
+    locaisNaTrilha=null;
   }
 }
 
@@ -686,6 +838,13 @@ function abrirTrilhaSalva(id){
   linhaTrilha.bringToFront();
   desenharPontosDaTrilha(coords.map(p=>({lat:p[0],lon:p[1]})));
 
+  if(locaisNaTrilha){
+    mapa.removeLayer(locaisNaTrilha);
+    locaisNaTrilha=null;
+  }
+  locaisNaTrilha=desenharLocaisProximosDaTrilha(coords);
+  if(locaisNaTrilha) locaisNaTrilha.bringToFront();
+
   // Ajusta o zoom para mostrar TODA a trilha.
   setTimeout(()=>{
     mapa.invalidateSize();
@@ -784,6 +943,7 @@ function atualizarPrincipal(){
 function voltarPrincipal(){
   el("telaMapa").classList.add("hidden");
   el("telaTrilhas").classList.add("hidden");
+  el("telaLocais").classList.add("hidden");
   el("telaPrincipal").classList.remove("hidden");
   modoVisualizacao="principal";
   atualizarPrincipal();
@@ -821,31 +981,31 @@ function importarGPX(event){
         throw new Error("GPX inválido.");
       }
 
-      // IMPORTANTE:
-      // Cada <trk> do GPX vira uma trilha independente.
       const tracks=[...doc.querySelectorAll("trk")];
-
-      if(!tracks.length){
-        alert("Este GPX não possui trilhas (<trk>) separadas.");
-        return;
-      }
+      const waypoints=[...doc.querySelectorAll("wpt")];
 
       const lista=obterTrilhas();
-      const nomeArquivo=arquivo.name.replace(/\.gpx$/i,"").trim() || "GPX";
+      const locais=obterLocais();
 
-      let quantidadeImportada=0;
+      const nomeArquivo=
+        arquivo.name.replace(/\.gpx$/i,"").trim() || "GPX";
 
+      let quantidadeTrilhas=0;
+      let quantidadeLocais=0;
+
+      // =========================
+      // TRILHAS: cada <trk> separado
+      // =========================
       tracks.forEach((trk,index)=>{
-        // Procura o nome próprio da trilha.
         const nomeTag=trk.querySelector(":scope > name");
         const nomeOriginal=nomeTag ? nomeTag.textContent.trim() : "";
 
-        const nomeTrilha =
+        const nomeTrilha=
           nomeOriginal ||
-          (tracks.length===1 ? nomeArquivo : nomeArquivo+" - Trilha "+(index+1));
+          (tracks.length===1
+            ? nomeArquivo
+            : nomeArquivo+" - Trilha "+(index+1));
 
-        // Cada trk pode ter um ou vários trkseg.
-        // Todos os pontos pertencentes a esse <trk> continuam juntos.
         const pontos=[...trk.querySelectorAll("trkpt")]
           .map(pt=>({
             lat:parseFloat(pt.getAttribute("lat")),
@@ -876,24 +1036,77 @@ function importarGPX(event){
           numeroTrilhaGPX:index+1
         });
 
-        quantidadeImportada++;
+        quantidadeTrilhas++;
       });
 
-      if(!quantidadeImportada){
-        alert("Não encontrei pontos suficientes nas trilhas deste GPX.");
+      // =========================
+      // LOCAIS: cada <wpt> separado
+      // =========================
+      waypoints.forEach((wpt,index)=>{
+        const lat=parseFloat(wpt.getAttribute("lat"));
+        const lon=parseFloat(wpt.getAttribute("lon"));
+
+        if(!Number.isFinite(lat)||!Number.isFinite(lon))return;
+
+        const nomeTag=wpt.querySelector(":scope > name");
+        const eleTag=wpt.querySelector(":scope > ele");
+        const timeTag=wpt.querySelector(":scope > time");
+        const descTag=wpt.querySelector(":scope > desc");
+
+        const nome=
+          nomeTag && nomeTag.textContent.trim()
+            ? nomeTag.textContent.trim()
+            : "Local "+(index+1);
+
+        locais.push({
+          id:"loc_gpx_"+Date.now()+"_"+index,
+          nome:nome,
+          lat:lat,
+          lon:lon,
+          ele:eleTag ? parseFloat(eleTag.textContent) : null,
+          hora:timeTag ? timeTag.textContent.trim() : null,
+          descricao:descTag ? descTag.textContent.trim() : "",
+          origem:"GPX",
+          arquivoGPX:arquivo.name
+        });
+
+        quantidadeLocais++;
+      });
+
+      if(!quantidadeTrilhas && !quantidadeLocais){
+        alert("Não encontrei trilhas (<trk>) nem locais (<wpt>) neste GPX.");
         return;
       }
 
       salvarLista(lista);
+      salvarLocais(locais);
 
-      alert(
-        quantidadeImportada===1
-        ? "1 trilha importada."
-        : quantidadeImportada+" trilhas importadas separadamente."
-      );
+      let mensagem=[];
 
-      renderizarLista();
-      abrirListaTrilhas();
+      if(quantidadeTrilhas){
+        mensagem.push(
+          quantidadeTrilhas+" trilha"+
+          (quantidadeTrilhas===1?"":"s")+" importada"+
+          (quantidadeTrilhas===1?"":"s")+" separadamente"
+        );
+      }
+
+      if(quantidadeLocais){
+        mensagem.push(
+          quantidadeLocais+" local"+
+          (quantidadeLocais===1?"":"is")+" importado"+
+          (quantidadeLocais===1?"":"s")
+        );
+      }
+
+      alert(mensagem.join("\\n"));
+
+      if(quantidadeTrilhas){
+        renderizarLista();
+        abrirListaTrilhas();
+      }else{
+        abrirLocais();
+      }
 
     }catch(e){
       console.error(e);
